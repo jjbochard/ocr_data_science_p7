@@ -17,5 +17,7 @@ run_mlflow_dev:
 run_mlflow_prod:
 	mlflow server --host 127.0.0.1 --port 8080
 
+run_streamlit:
+	streamlit run api/streamlit_app.py
 run_test:
 	pytest -s api/test_api.py
