@@ -12,5 +12,9 @@ venv/
 
 .vscode/
 
+data/
+mlartifacts/
+mlruns/
+
 .DS_Store
 Thumbs.db
