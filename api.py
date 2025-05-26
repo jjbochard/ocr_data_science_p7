@@ -118,8 +118,8 @@ async def predict(request: Request, payload: PredictPayload) -> PredictResponse:
     df = pd.DataFrame(**payload.dataframe_split.model_dump())
 
     # Predict classes and probabilities
-    preds = sklearn_model.predict(df).astype(int).tolist()
-    probas = sklearn_model.predict_proba(df).tolist()
+    preds = sklearn_model.predict(df)
+    probas = sklearn_model.predict_proba(df)
 
     return PredictResponse(
         threshold=threshold_value,
