@@ -50,7 +50,7 @@ class DummyModel:
 
 
 @pytest.fixture
-def client_and_model(monkeypatch):
+def client_and_model():
     """Provide a TestClient with DummyModel injected into app state."""
     client = TestClient(app)
     dummy = DummyModel()
@@ -91,7 +91,7 @@ def test_predict_success(client_and_model, payload):
     ],
 )
 def test_missing_model_or_threshold(
-    remove_model, remove_threshold, detail, monkeypatch, payload
+    remove_model, remove_threshold, detail, payload
 ):
     client = TestClient(app)
     if remove_model and hasattr(app.state, "sk_model"):
