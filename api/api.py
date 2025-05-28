@@ -12,7 +12,8 @@ from pydantic import BaseModel
 
 # Load environment variables
 load_dotenv(override=True)
-MODEL_URI = os.getenv("MODEL_URI")
+MODEL_NAME = os.getenv("MODEL_NAME")
+MODEL_ALIAS = os.getenv("MODEL_ALIAS")
 TRACKING_URI = os.getenv("TRACKING_URI")
 mlflow.set_tracking_uri(TRACKING_URI)
 mlflow_client = MlflowClient()
@@ -64,24 +65,18 @@ async def lifespan(app: FastAPI):
     - Reads the `threshold` parameter from the training run.
     - Stores model and threshold in app.state for use in endpoints.
     """
-    # Validate MODEL_URI format: expecting "models:/<name>/<version>"
-    if not MODEL_URI.startswith("models:/"):
-        raise RuntimeError(f"Unsupported MODEL_URI format: {MODEL_URI}")
-    _, model_name, version_str = MODEL_URI.split("/")
-
-    # Fetch the registered model to get the run_id
     try:
         model_version = mlflow_client.get_model_version_by_alias(
-            name=model_name, alias="champion"
+            name=MODEL_NAME, alias=MODEL_ALIAS
         )
         run_id = model_version.run_id
-    except MlflowException as e:
+    except MlflowException:
         raise RuntimeError(
-            "[Error] There is no model with alias champion"
-        ) from e
-
+            f"[Error] There is no model with alias '{MODEL_ALIAS}' for model '{MODEL_NAME}'"
+        )
     # Load the sklearn model
-    sklearn_model = mlflow.sklearn.load_model(MODEL_URI)
+    model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
+    sklearn_model = mlflow.sklearn.load_model(model_uri)
 
     # Retrieve threshold parameter from the run metadata
     run = mlflow_client.get_run(run_id)
