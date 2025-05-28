@@ -6,15 +6,15 @@ import mlflow
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
+from mlflow.exceptions import MlflowException
 from mlflow.tracking import MlflowClient
 from pydantic import BaseModel
 
 # Load environment variables
-load_dotenv()
-HOST = os.getenv("HOST", "localhost")
-PORT = int(os.getenv("PORT", "8000"))
-MODEL_URI = os.getenv("MODEL_URI", "models:/home_credit/1")
-mlflow.set_tracking_uri(f"http://{HOST}:{PORT}")
+load_dotenv(override=True)
+MODEL_URI = os.getenv("MODEL_URI")
+TRACKING_URI = os.getenv("TRACKING_URI")
+mlflow.set_tracking_uri(TRACKING_URI)
 mlflow_client = MlflowClient()
 
 
@@ -68,13 +68,19 @@ async def lifespan(app: FastAPI):
     if not MODEL_URI.startswith("models:/"):
         raise RuntimeError(f"Unsupported MODEL_URI format: {MODEL_URI}")
     _, model_name, version_str = MODEL_URI.split("/")
-    version = int(version_str)
 
-    # Fetch the registered model version to get the run_id
-    mv = mlflow_client.get_model_version(name=model_name, version=version)
-    run_id = mv.run_id
+    # Fetch the registered model to get the run_id
+    try:
+        model_version = mlflow_client.get_model_version_by_alias(
+            name=model_name, alias="champion"
+        )
+        run_id = model_version.run_id
+    except MlflowException as e:
+        raise RuntimeError(
+            "[Error] There is no model with alias champion"
+        ) from e
 
-    # Load the sklearn model artifact
+    # Load the sklearn model
     sklearn_model = mlflow.sklearn.load_model(MODEL_URI)
 
     # Retrieve threshold parameter from the run metadata
