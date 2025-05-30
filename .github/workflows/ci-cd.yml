@@ -7,8 +7,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    env:
-      IMAGE_URI: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/home-credit-api:latest
     steps:
     - name: Checkout repo
       uses: actions/checkout@v4
@@ -58,8 +56,8 @@ jobs:
 
     - name: Build and push Docker image
       run: |
-        docker build -t $IMAGE_URI .
-        docker push $IMAGE_URI
+        cd api/
+        docker build -t $IMAGE_URI --push .
 
     - name: Trigger App Runner redeploy
       run: |
