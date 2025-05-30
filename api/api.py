@@ -102,6 +102,14 @@ app = FastAPI(
 )
 
 
+@app.get("/health")
+async def health_check():
+    """
+    Check if API is up
+    """
+    return {"status": "ok"}
+
+
 @app.post("/predict", response_model=PredictResponse, tags=["Prediction"])
 async def predict(request: Request, payload: PredictPayload) -> PredictResponse:
     """
