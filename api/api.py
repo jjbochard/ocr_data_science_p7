@@ -72,7 +72,8 @@ async def lifespan(app: FastAPI):
         run_id = model_version.run_id
     except MlflowException:
         raise RuntimeError(
-            f"[Error] There is no model with alias '{MODEL_ALIAS}' for model '{MODEL_NAME}'"
+            f"[Error] There is no model with alias '{MODEL_ALIAS}'"
+            f" for model '{MODEL_NAME}'"
         )
     # Load the sklearn model
     model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
