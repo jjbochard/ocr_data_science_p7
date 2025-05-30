@@ -61,6 +61,5 @@ jobs:
 
     - name: Trigger App Runner redeploy
       run: |
-        aws apprunner update-service \
+        aws apprunner start-deployment \
           --service-arn $SERVICE_ARN \
-          --source-configuration "ImageRepository={ImageIdentifier=\"$IMAGE_URI\",ImageRepositoryType=\"ECR\",ImageConfiguration={Port=\"8080\"}}"
