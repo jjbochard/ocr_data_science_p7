@@ -82,7 +82,9 @@ async def lifespan(app: FastAPI):
     run = mlflow_client.get_run(run_id)
     params = run.data.params
     if "threshold" not in params:
-        raise RuntimeError("Missing 'threshold' parameter in MLflow run params")
+        raise RuntimeError(
+            "Missing 'threshold' parameter in MLflow run params"
+        )
     try:
         threshold_value = float(params["threshold"])
     except ValueError as e:
@@ -111,7 +113,9 @@ async def health_check():
 
 
 @app.post("/predict", response_model=PredictResponse, tags=["Prediction"])
-async def predict(request: Request, payload: PredictPayload) -> PredictResponse:
+async def predict(
+    request: Request, payload: PredictPayload
+) -> PredictResponse:
     """
     Performs inference using loaded model and threshold.
     """

@@ -78,7 +78,10 @@ def test_predict_success(client_and_model, payload):
 
     # verify response contents
     assert_response_body(
-        body, threshold=0.42, predictions=[1, 1], proba=[[0.1, 0.9], [0.1, 0.9]]
+        body,
+        threshold=0.42,
+        predictions=[1, 1],
+        proba=[[0.1, 0.9], [0.1, 0.9]],
     )
 
 
