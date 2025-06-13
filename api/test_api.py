@@ -17,7 +17,7 @@ def assert_df_received(model, payload):
     """
     Assert that the dummy model received the correct DataFrame.
     """
-    expected = pd.DataFrame(**payload["dataframe_split"])
+    expected = pd.DataFrame([payload["features"]])
     actual = model.last_df
     assert actual is not None, "Model did not receive a DataFrame"
     assert_frame_equal(
@@ -62,9 +62,7 @@ def client_and_model():
 @pytest.fixture
 def payload():
     """Return a standard 2-row payload matching DataFrameSplit schema."""
-    return {
-        "dataframe_split": {"columns": ["a", "b"], "data": [[1, 2], [3, 4]]}
-    }
+    return {"features": {"a": 1, "b": 2}}
 
 
 def test_predict_success(client_and_model, payload):
@@ -80,8 +78,8 @@ def test_predict_success(client_and_model, payload):
     assert_response_body(
         body,
         threshold=0.42,
-        predictions=[1, 1],
-        proba=[[0.1, 0.9], [0.1, 0.9]],
+        predictions=[1],
+        proba=[[0.1, 0.9]],
     )
 
 
