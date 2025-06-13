@@ -1,8 +1,9 @@
 import os
 from contextlib import asynccontextmanager
-from typing import Any, List
+from typing import Any, Dict, List
 
 import mlflow
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -19,26 +20,13 @@ mlflow.set_tracking_uri(TRACKING_URI)
 mlflow_client = MlflowClient()
 
 
-class DataFrameSplit(BaseModel):
-    """
-    Schema for MLflow `dataframe_split` payload format.
-
-    Attributes:
-        columns: list of column names
-        data: list of rows, each a list of values
-    """
-
-    columns: List[str]
-    data: List[List[Any]]
-
-
 class PredictPayload(BaseModel):
     """
     Request schema for prediction endpoint.
-    Accepts only `dataframe_split` format for simplicity.
+    Flat dictionary where keys are feature names.
     """
 
-    dataframe_split: DataFrameSplit
+    features: Dict[str, Any]
 
 
 class PredictResponse(BaseModel):
@@ -79,9 +67,14 @@ async def lifespan(app: FastAPI):
     model_uri = f"models:/{MODEL_NAME}@{MODEL_ALIAS}"
     sklearn_model = mlflow.sklearn.load_model(model_uri)
 
+    pyfunc_model = mlflow.pyfunc.load_model(model_uri)
+    signature = pyfunc_model.metadata.signature
+    input_schema = signature.inputs
+
     # Retrieve threshold parameter from the run metadata
-    run = mlflow_client.get_run(run_id)
-    params = run.data.params
+    run_id = pyfunc_model.metadata.run_id
+    params = mlflow_client.get_run(run_id).data.params
+
     if "threshold" not in params:
         raise RuntimeError(
             "Missing 'threshold' parameter in MLflow run params"
@@ -91,9 +84,10 @@ async def lifespan(app: FastAPI):
     except ValueError as e:
         raise RuntimeError("Invalid threshold value in MLflow params") from e
 
-    # Store loaded model and threshold in application state
+    # Store loaded model, threshold and input_schema in application state
     app.state.sk_model = sklearn_model
     app.state.threshold = threshold_value
+    app.state.input_schema = input_schema
 
     yield
 
@@ -122,14 +116,47 @@ async def predict(
     """
     sklearn_model = getattr(request.app.state, "sk_model", None)
     threshold_value = getattr(request.app.state, "threshold", None)
+    input_schema = getattr(request.app.state, "input_schema", None)
+
+    df = pd.DataFrame([payload.features])
 
     if sklearn_model is None or threshold_value is None:
         raise HTTPException(
             status_code=503, detail="Model or threshold not loaded"
         )
+    type_map = {
+        "integer": "Int64",
+        "float": "float32",
+        "double": "float64",
+        "double (optional)": "float64",
+        "boolean": "boolean",
+        "string": "string",
+    }
 
-    # Convert payload to pandas DataFrame
-    df = pd.DataFrame(**payload.dataframe_split.model_dump())
+    df = df.replace({None: np.nan})
+
+    # Force type conversion based on input schema
+    for col_schema in input_schema:
+        col = col_schema.name
+        mlflow_type = col_schema.type
+        expected_dtype = type_map.get(mlflow_type)
+
+        if expected_dtype is None:
+            continue
+
+        if col not in df.columns:
+            raise ValueError(f"Missing expected column in input: {col}")
+
+        try:
+            if expected_dtype in ["float32", "float64", "Int64"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+                df[col] = df[col].astype(expected_dtype)
+            else:
+                df[col] = df[col].astype(expected_dtype)
+        except Exception as e:
+            raise ValueError(
+                f"Error when converting '{col}' in {expected_dtype} : {e}"
+            )
 
     # Predict classes and probabilities
     preds = sklearn_model.predict(df)
