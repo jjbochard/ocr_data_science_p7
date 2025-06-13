@@ -1,6 +1,7 @@
 import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
+from mlflow.types import ColSpec, Schema
 from pandas.testing import assert_frame_equal
 
 from api.api import app
@@ -56,6 +57,9 @@ def client_and_model():
     dummy = DummyModel()
     app.state.sk_model = dummy
     app.state.threshold = 0.42
+    app.state.input_schema = Schema(
+        [ColSpec("integer", "a"), ColSpec("integer", "b")]
+    )
     return client, dummy
 
 
