@@ -6,6 +6,7 @@
 - [Configuration](#configuration)
 - [MLflow & Model Registry](#mlflow--model-registry)
 - [Hyperparameter Tuning with Optuna](#hyperparameter-tuning-with-optuna)
+- [Start experiment](#start-experiment)
 - [API Usage (FastAPI)](#api-usage-fastapi)
 - [Running Tests](#running-tests)
 - [License](#license)
@@ -85,16 +86,83 @@ This configures MLflow to point at your tracking server and selects which model 
 - The best parameters and optimal threshold are automatically registered in MLflow.
 ![Mlflow UI](mlflow_ui.png)
 
+## Start experiment
+
+You just have to follow this template
+
+```python
+df_experiment = data_feat_engineering_bureau_previous_pos_cash_ins.copy()
+
+df_experiment.drop(
+    columns=["SK_ID_CURR", "EXT_SOURCE_1", "EXT_SOURCE_2", "EXT_SOURCE_3"],
+    inplace=True,
+)
+model_name = "lightgbm"
+run_experiment(
+    X=df_experiment.drop(columns=["TARGET"]),
+    y=df_experiment["TARGET"],
+    n_trials=30,
+    n_splits=5,
+    fn_cost=1000,
+    fp_cost=100,
+    model_name=model_name,
+    dataset_name="train-fe-b-p-pc-i",
+    experiment_name="home_credit_" + model_name,
+    test_size=0.2,
+    random_state=42,
+)
+
+del df_experiment
+gc.collect()
+```
+
+Here, delete an ID column and column with data from an unknown source.
+
+For the dataset_name, use abbreviation to get a smaller name.
+
+The model is trained adding files one by one.
+
+train is the raw dataset. train_fe is the raw dataset with columns from features engineering. And so on.
+
+b -> data from bureau.csv and bureau_balance.csv file.
+
+p -> data from previous_application.csv file.
+
+pc -> data from POS_CASH_balance.csv file.
+
+i -> data from installments_payment.csv file.
+
+ccb -> data from credit_card_balance.csv files.
+
+
 ## API Usage (FastAPI)
 
 - The API serves predictions via POST `/predict`.
-- Payload format: MLflow `dataframe_split` JSON with `columns` and `data`.
+- The API expects a JSON object with a `features` key containing a flat dictionary
+where each key is a feature name and each value is the corresponding input.
+
+**Example:**
+
+```json
+{
+  "features": {
+    "EXT_SOURCE_2": 0.5943,
+    "EXT_SOURCE_3": 0.4276,
+    "EXT_SOURCE_1": null,
+    "AMT_ANNUITY": 30676.5,
+    "CODE_GENDER": "M",
+    "AGE": 37,
+    "AMT_INCOME_TOTAL": 157500.0
+  }
+}
+```
 - Response includes:
+
   ```json
   {
     "threshold": 0.42,
-    "predictions": [0, 1],
-    "predict_proba": [[0.8, 0.2], [0.3, 0.7]]
+    "predictions": [0],
+    "predict_proba": [[0.8, 0.2]]
   }
   ```
 - Run the API locally:
