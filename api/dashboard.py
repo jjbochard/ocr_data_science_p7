@@ -5,9 +5,6 @@ import plotly.express as px
 import requests
 from dash import dcc, html
 
-# Download data from github
-# url = "https://github.com/jjbochard/ocr_data_science_p7/releases/download/1.0.0/home_credit_selected_features.csv.gz"
-# df = pd.read_csv(url, compression="gzip")
 df = pd.read_csv("data/home_credit_selected_features_preview.csv")
 app = dash.Dash(__name__)
 
@@ -94,7 +91,10 @@ def update_dashboard(client_id):
             if positive_proba >= threshold
             else "✅ Credit accepted"
         )
-        summary = f"Score client predicted : {positive_proba:.2f} | Threshold : {threshold:.2f} → {decision}"
+        summary = (
+            f"Score client predicted : {positive_proba:.2f} | "
+            f"Threshold : {threshold:.2f} → {decision}"
+        )
 
         return summary, fig
 
