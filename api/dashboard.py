@@ -1,3 +1,5 @@
+import json
+
 import dash
 import numpy as np
 import pandas as pd
@@ -95,8 +97,22 @@ def update_dashboard(client_id):
             f"Score client predicted : {positive_proba:.2f} | "
             f"Threshold : {threshold:.2f} → {decision}"
         )
-
-        return summary, fig
+        payload_text = json.dumps(payload, indent=2)
+        return (
+            html.Div(
+                [
+                    html.P(summary),
+                    html.Pre(
+                        payload_text,
+                        style={
+                            "whiteSpace": "pre-wrap",
+                            "fontFamily": "monospace",
+                        },
+                    ),
+                ]
+            ),
+            fig,
+        )
 
     except Exception as e:
         return f"API Error: {e}", {}
