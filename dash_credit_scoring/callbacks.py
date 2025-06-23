@@ -20,9 +20,9 @@ def register_callbacks(app):
             Output("proba-vs-threshold", "figure"),
             Output("feature-importance-local", "children"),
         ],
-        [Input("client-id", "value")],
+        [Input("client-id", "value"), Input("max-feature-count", "value")],
     )
-    def update_dashboard(client_id):
+    def update_dashboard(client_id, max_features):
         if client_id is None:
             raise PreventUpdate
 
@@ -106,7 +106,9 @@ def register_callbacks(app):
             shap_proba_expl = transform_shap_to_proba(
                 shap_values_full, Y_pred_proba_full, obs_index
             )
-            fig_shap = shap_waterfall_plot(shap_proba_expl, max_display=10)
+            fig_shap = shap_waterfall_plot(
+                shap_proba_expl, max_display=max_features
+            )
             fig_shap.update_yaxes(autorange="reversed")
             return (
                 html.Div(

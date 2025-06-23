@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -10,12 +12,16 @@ def shap_waterfall_plot(
     data_values = shap_values_transformed.data
     base_value = shap_values_transformed.base_values
     fx = base_value + values.sum()
+    total_contribution_range = abs(fx - base_value)
 
     # Descending sort by absolute importance
     sorted_inds = np.argsort(-np.abs(values))
     features = features[sorted_inds]
     values = values[sorted_inds]
-    data_values = data_values[sorted_inds]
+    data_values = [
+        round(x, 2) if isinstance(x, float) and not math.isnan(x) else x
+        for x in data_values[sorted_inds]
+    ]
 
     if max_display < len(values):
         number_features_rest = len(values) - max_display
@@ -46,6 +52,10 @@ def shap_waterfall_plot(
             if values[i] > 0
             else "royalblue"
         )
+        rel_size = abs(values[i]) / total_contribution_range
+        bar_text = f"{values[i]:+.2f}"
+        text_pos = "inside" if rel_size >= 0.05 else "outside"
+
         fig.add_trace(
             go.Bar(
                 y=[y_labels[i]],
@@ -53,9 +63,10 @@ def shap_waterfall_plot(
                 orientation="h",
                 base=starts[i],
                 marker_color=color,
-                text=f"{values[i]:+.3f}",
+                text=bar_text,
+                textposition=text_pos,
                 hovertemplate=f"{y_labels[i]}<br>Contribution: "
-                + f"{values[i]:+.3f}<extra></extra>",
+                + f"{values[i]:+.4f}<extra></extra>",
             )
         )
 
@@ -71,11 +82,14 @@ def shap_waterfall_plot(
         annotation_text=f"f(x) = {fx:.3f}",
         annotation_position="top right",
     )
+    height_px = 40 * len(features) + 100
+
     fig.update_layout(
         title="SHAP Waterfall (contribution to proba)",
         xaxis_title="Cumulative contribution",
         barmode="stack",
         showlegend=False,
+        height=height_px,
     )
     fig.update_yaxes(automargin=True)
 

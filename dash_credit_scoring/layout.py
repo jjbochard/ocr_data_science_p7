@@ -16,6 +16,16 @@ layout = html.Div(
         ),
         html.Div(id="client-summary"),
         dcc.Graph(id="proba-vs-threshold"),
+        dcc.Dropdown(
+            id="max-feature-count",
+            options=[
+                {"label": f"{n} features", "value": n}
+                for n in [5, 10, 15, 20, 25, 50]
+            ],
+            value=5,
+            clearable=False,
+            style={"marginTop": "10px"},
+        ),
         html.Div(id="feature-importance-local"),
     ],
     style={
