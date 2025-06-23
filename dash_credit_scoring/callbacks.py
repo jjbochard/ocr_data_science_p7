@@ -54,8 +54,10 @@ def register_callbacks(app):
                 if positive_proba >= threshold
                 else "✅ Credit validate"
             )
-            summary_text = f"Predicted score : {positive_proba:.2f} | "
-            +f"Threshold : {threshold:.2f} → {decision}"
+            summary_text = (
+                f"Predicted score : {positive_proba:.2f} | "
+                + f"Threshold : {threshold:.2f} → {decision}"
+            )
 
             # Graph score vs threshold
             figure = {
