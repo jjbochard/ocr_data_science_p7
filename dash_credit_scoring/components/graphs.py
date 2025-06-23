@@ -25,7 +25,9 @@ def shap_waterfall_plot(
             "Count other features",
         )
         values = np.append(values[:max_display], rest)
-        data_values = np.append(f"{number_features_rest}")
+        data_values = np.append(
+            data_values[:max_display], f"{number_features_rest}"
+        )
     else:
         features = features[:max_display]
         values = values[:max_display]
