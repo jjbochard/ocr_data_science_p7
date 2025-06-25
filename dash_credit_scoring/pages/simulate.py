@@ -246,7 +246,7 @@ def recalculate_prediction(
                     + f"Threshold : {threshold:.2f} → {decision}"
                 ),
                 html.Hr(),
-                html.H5("🔧 Modified features :"),
+                html.H5("Modified features :"),
                 diff_table,
             ]
         ),
