@@ -22,6 +22,7 @@ register_page(__name__, path="/simulate", name="Simulation")
     df_full,
     df_transformed,
     explainer,
+    _,
     allowed_values_per_feature,
 ) = load_model_and_data()
 

@@ -29,7 +29,7 @@ def load_model_and_data() -> Tuple[
     )
     # TODO: Remove this line when app in production
     # Filter only the first 10 rows for performance
-    df = df.iloc[:10].copy()
+    df = df.iloc[:1000].copy()
 
     # Load model
     model_uri = f"runs:/{FINAL_RUN}/final_model"
@@ -58,6 +58,11 @@ def load_model_and_data() -> Tuple[
         for col in df.columns
         if df[col].dtype == "object" or df[col].dtype.name == "category"
     }
+    groupable_columns = [
+        col
+        for col in df.select_dtypes(include=["object", "category"]).columns
+        if df[col].nunique() <= 10
+    ]
 
     return (
         shap_values,
@@ -65,6 +70,7 @@ def load_model_and_data() -> Tuple[
         df,
         X_df,
         explainer,
+        groupable_columns,
         allowed_values_per_objects_columns,
     )
 
