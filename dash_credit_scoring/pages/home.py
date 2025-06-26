@@ -7,8 +7,13 @@ from components.graphs import shap_waterfall_plot
 from dash import Input, Output, callback, dcc, html, register_page
 from dash.exceptions import PreventUpdate
 from utils import (
+    add_client_point,
+    add_group_trace,
+    build_color_map,
+    build_layout,
     call_prediction_api,
     get_row_and_index,
+    get_top_numeric_features,
     load_model_and_data,
     make_score_figure,
     transform_shap_to_proba,
@@ -156,7 +161,7 @@ def update_dashboard(
         return (
             html.Div(f"Erreur API: {e}"),
             {},
-            html.Div("Erreur lors de la génération de l’explication locale."),
+            html.Div("Error during SHAP construction"),
         )
 
 
@@ -175,19 +180,22 @@ def update_violin_plots(client_id, max_features, group_column):
         shap_vals = shap_values_full.values[obs_index]
         feature_names = shap_values_full.feature_names
 
-        # Top sorted N SHAP features
-        top_features = sorted(
-            zip(feature_names, shap_vals),
-            key=lambda x: abs(x[1]),
-            reverse=True,
+        top_numeric_features = get_top_numeric_features(
+            shap_vals, feature_names, df_full, max_features
         )
-        top_feature_names = [f[0] for f in top_features[:max_features]]
 
-        # Keep only numerical features
-        numeric_cols = df_full.select_dtypes(include=[np.number]).columns
-        top_numeric_features = [
-            f for f in top_feature_names if f in numeric_cols
-        ]
+        if group_column:
+            groups_raw = df_full[group_column].dropna().unique().tolist()
+            # Reorder day if group_column contains days
+            groups = (
+                [d for d in WEEKDAY_ORDER if d in groups_raw]
+                if group_column == "WEEKDAY_APPR_PROCESS_START"
+                else sorted(groups_raw)
+            )
+            color_map = build_color_map(groups)
+        else:
+            groups = ["All clients"]
+            color_map = {"All clients": px.colors.qualitative.Plotly[0]}
 
         figures = []
         for feature in top_numeric_features:
@@ -196,119 +204,25 @@ def update_violin_plots(client_id, max_features, group_column):
             use_bar_plot = unique_vals < LOW_UNIQUE_THRESHOLD
             client_val = row[feature]
 
-            if group_column:
-                groups_raw = df_full[group_column].dropna().unique().tolist()
-                # Reorder weekday
-                if group_column == "WEEKDAY_APPR_PROCESS_START":
-                    groups = [
-                        day for day in WEEKDAY_ORDER if day in groups_raw
-                    ]
-                else:
-                    groups = sorted(groups_raw)
-
-                color_map = {
-                    group: palette[i % len(palette)]
-                    for i, group in enumerate(groups)
-                }
-
-                for group in groups:
-                    mask = df_full[group_column] == group
-                    group_size = mask.sum()
-                    y_vals = df_full[feature][mask]
-                    color = color_map[group]
-
-                    if use_bar_plot:
-                        value_counts = y_vals.value_counts().sort_index()
-                        fig.add_trace(
-                            go.Bar(
-                                x=[str(x) for x in value_counts.index],
-                                y=value_counts.values,
-                                name=f"{group} ({group_size})",
-                                marker_color=color,
-                                marker_line_color=color,
-                                opacity=0.6,
-                            )
-                        )
-                    else:
-                        fig.add_trace(
-                            go.Violin(
-                                x=df_full[group_column][mask],
-                                y=y_vals,
-                                name=f"{group} ({group_size})",
-                                box_visible=True,
-                                meanline_visible=True,
-                                points=False,
-                            )
-                        )
-                client_group = row.get(group_column)
-                x_client = (
-                    [str(client_val)] if use_bar_plot else [client_group]
+            for group in groups:
+                add_group_trace(
+                    fig,
+                    df_full,
+                    feature,
+                    group_column,
+                    group,
+                    color_map[group],
+                    use_bar_plot,
                 )
-            else:
-                if use_bar_plot:
-                    value_counts = df_full[feature].value_counts().sort_index()
-                    fig.add_trace(
-                        go.Bar(
-                            x=[str(x) for x in value_counts.index],
-                            y=value_counts.values,
-                            name=f"All clients ({len(df_full)})",
-                            opacity=0.6,
-                        )
-                    )
-                    x_client = [str(client_val)]
 
-                else:
-                    fig.add_trace(
-                        go.Violin(
-                            x=["All clients"] * len(df_full),
-                            y=df_full[feature],
-                            name=f"All clients ({len(df_full)})",
-                            box_visible=True,
-                            meanline_visible=True,
-                            points=False,
-                        )
-                    )
-                    x_client = ["All clients"]
-
-            # Add a trace for the selected client
-            fig.add_trace(
-                go.Scatter(
-                    x=[x_client],
-                    y=[client_val],
-                    mode="markers+text",
-                    name="Client",
-                    marker=dict(color="black", size=12),
-                    text=[f"Client: {row[feature]:.1f}"],
-                    textposition="top center",
-                    showlegend=False,
-                )
+            client_group = (
+                row.get(group_column) if group_column else "All clients"
             )
-            title = f"Distribution of {feature}\n"
-            if group_column:
-                title += f" by {group_column} (Client vs Population)"
-            else:
-                title += "\n(Client vs Population)"
 
-            layout_config = {
-                "title": title,
-                "xaxis": {"showticklabels": False},
-                "yaxis_title": feature,
-                "legend": {
-                    "orientation": "h",
-                    "yanchor": "bottom",
-                    "y": -0.4,
-                    "xanchor": "center",
-                    "x": 0.5,
-                },
-            }
-            if not use_bar_plot:
-                layout_config.update(
-                    {
-                        "violingap": 0.3,
-                        "violingroupgap": 0.4,
-                    }
-                )
-            fig.update_layout(**layout_config)
+            add_client_point(fig, client_group, client_val, use_bar_plot)
+            fig.update_layout(
+                **build_layout(feature, group_column, use_bar_plot)
+            )
             figures.append(
                 html.Div(
                     dcc.Graph(figure=fig),

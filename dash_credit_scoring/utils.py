@@ -4,6 +4,7 @@ from typing import List, Tuple
 import mlflow
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objs as go
 import requests
 import shap
@@ -212,3 +213,87 @@ def get_feature_differences(
         if original[key] != modified.get(key)
         and not (pd.isna(original[key]) and pd.isna(modified.get(key)))
     ]
+
+
+def get_top_numeric_features(shap_values, feature_names, df, max_features):
+    top = sorted(
+        zip(feature_names, shap_values), key=lambda x: abs(x[1]), reverse=True
+    )
+    names = [name for name, _ in top[:max_features]]
+    numeric = set(df.select_dtypes(include=[np.number]).columns)
+    return [f for f in names if f in numeric]
+
+
+def build_color_map(groups):
+    palette = px.colors.qualitative.Plotly
+    return {grp: palette[i % len(palette)] for i, grp in enumerate(groups)}
+
+
+def add_client_point(fig, client_group, client_val, use_bar):
+    x = str(client_val) if use_bar else client_group
+    fig.add_trace(
+        go.Scatter(
+            x=[x],
+            y=[client_val],
+            mode="markers+text",
+            name="Client",
+            marker=dict(color="black", size=12),
+            text=[f"Client: {client_val:.1f}"],
+            textposition="top center",
+            showlegend=False,
+        )
+    )
+
+
+def build_layout(feature, group_column, use_bar):
+    title = f"Distribution of {feature}"
+    if group_column:
+        title += f"\nby {group_column} (Client vs Population)"
+    else:
+        title += "\n(Client vs Population)"
+
+    cfg = {
+        "title": title,
+        "xaxis": {"showticklabels": False},
+        "yaxis_title": feature,
+        "legend": {
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": -0.4,
+            "xanchor": "center",
+            "x": 0.5,
+        },
+    }
+    if not use_bar:
+        cfg.update({"violingap": 0.3, "violingroupgap": 0.4})
+    return cfg
+
+
+def add_group_trace(fig, df, feature, group_column, group, color, use_bar):
+    mask = df[group_column] == group if group_column else slice(None)
+    vals = df.loc[mask, feature]
+    size = mask.sum() if group_column else len(df)
+    if use_bar:
+        vc = vals.value_counts().sort_index()
+        fig.add_trace(
+            go.Bar(
+                x=[str(x) for x in vc.index],
+                y=vc.values,
+                name=f"{group} ({size})",
+                marker_color=color,
+                marker_line_color=color,
+                opacity=0.6,
+            )
+        )
+    else:
+        fig.add_trace(
+            go.Violin(
+                x=[group] * len(vals),
+                y=vals,
+                name=f"{group} ({size})",
+                box_visible=True,
+                meanline_visible=True,
+                opacity=0.6,
+                points=False,
+            )
+        )
