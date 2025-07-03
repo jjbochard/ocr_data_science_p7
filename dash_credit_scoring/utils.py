@@ -12,6 +12,7 @@ from dash import html
 
 # from dash import html
 from dotenv import load_dotenv
+from pandas.api.types import is_numeric_dtype
 from scipy.special import expit
 
 load_dotenv(override=True)
@@ -215,13 +216,12 @@ def get_feature_differences(
     ]
 
 
-def get_top_numeric_features(shap_values, feature_names, df, max_features):
+def get_top_features(shap_values, feature_names, df, max_features):
     top = sorted(
         zip(feature_names, shap_values), key=lambda x: abs(x[1]), reverse=True
     )
     names = [name for name, _ in top[:max_features]]
-    numeric = set(df.select_dtypes(include=[np.number]).columns)
-    return [f for f in names if f in numeric]
+    return [f for f in names if f in names]
 
 
 def build_color_map(groups):
@@ -230,27 +230,54 @@ def build_color_map(groups):
 
 
 def add_client_point(fig, client_group, client_val, use_bar):
-    x = str(client_val) if use_bar else client_group
-    fig.add_trace(
-        go.Scatter(
-            x=[x],
-            y=[client_val],
-            mode="markers+text",
-            name="Client",
-            marker=dict(color="black", size=12),
-            text=[f"Client: {client_val:.1f}"],
-            textposition="top center",
-            showlegend=False,
+    # x = str(client_val) if use_bar else client_group
+    # fig.add_trace(
+    #     go.Scatter(
+    #         x=[x],
+    #         y=[client_val],
+    #         mode="markers+text",
+    #         name="Client",
+    #         marker=dict(color="black", size=12),
+    #         text=[f"Client: {client_val:.1f}"],
+    #         textposition="top center",
+    #         showlegend=False,
+    #     )
+    # )
+    if isinstance(client_val, (int, float, np.integer, np.floating)):
+        label = f"{client_val:.2f}"
+    else:
+        label = str(client_val)
+
+    if use_bar:
+        fig.add_trace(
+            go.Scatter(
+                x=[str(client_val)],
+                y=[0],
+                mode="markers+text",
+                text=[label],
+                textposition="top center",
+                marker=dict(color="black", size=10, symbol="diamond"),
+                showlegend=False,
+            )
         )
-    )
+    else:
+        fig.add_trace(
+            go.Scatter(
+                x=[client_group],
+                y=[client_val],
+                mode="markers+text",
+                text=[label],
+                textposition="top center",
+                marker=dict(color="black", size=10, symbol="diamond"),
+                showlegend=False,
+            )
+        )
 
 
 def build_layout(feature, group_column, use_bar):
-    title = f"Distribution of {feature}"
+    title = f"{feature}"
     if group_column:
-        title += f"\nby {group_column} (Client vs Population)"
-    else:
-        title += "\n(Client vs Population)"
+        title += f"<br>by {group_column}"
 
     cfg = {
         "title": title,
@@ -273,7 +300,8 @@ def add_group_trace(fig, df, feature, group_column, group, color, use_bar):
     mask = df[group_column] == group if group_column else slice(None)
     vals = df.loc[mask, feature]
     size = mask.sum() if group_column else len(df)
-    if use_bar:
+
+    if not is_numeric_dtype(vals):
         vc = vals.value_counts().sort_index()
         fig.add_trace(
             go.Bar(
@@ -281,19 +309,31 @@ def add_group_trace(fig, df, feature, group_column, group, color, use_bar):
                 y=vc.values,
                 name=f"{group} ({size})",
                 marker_color=color,
-                marker_line_color=color,
                 opacity=0.6,
             )
         )
     else:
-        fig.add_trace(
-            go.Violin(
-                x=[group] * len(vals),
-                y=vals,
-                name=f"{group} ({size})",
-                box_visible=True,
-                meanline_visible=True,
-                opacity=0.6,
-                points=False,
+        if use_bar:
+            vc = vals.value_counts().sort_index()
+            fig.add_trace(
+                go.Bar(
+                    x=[str(x) for x in vc.index],
+                    y=vc.values,
+                    name=f"{group} ({size})",
+                    marker_color=color,
+                    marker_line_color=color,
+                    opacity=0.6,
+                )
             )
-        )
+        else:
+            fig.add_trace(
+                go.Violin(
+                    x=[group] * len(vals),
+                    y=vals,
+                    name=f"{group} ({size})",
+                    box_visible=True,
+                    meanline_visible=True,
+                    opacity=0.6,
+                    points=False,
+                )
+            )

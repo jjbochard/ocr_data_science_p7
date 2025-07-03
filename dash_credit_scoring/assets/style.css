@@ -1,0 +1,54 @@
+/* assets/style.css */
+
+  /* navbar */
+  .navbar {
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    border-bottom: 1px solid #ddd;
+    padding: 0.5rem 1rem;
+    position: sticky;
+    top: 0;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  /* Logo navbar */
+  .navbar-logo-img {
+    height: 2.5rem;
+    margin-right: 1.5rem;
+  }
+
+  /* Links */
+  .navbar-link {
+    margin-right: 1rem;
+    color: #333;
+    text-decoration: none;
+    font-size: 1rem;
+  }
+  .navbar-link:hover,
+  .navbar-link:focus {
+    color: #005b96;
+  }
+  .navbar-link.active {
+    font-weight: bold;
+    color: #005b96;
+  }
+
+  .main-content {
+    flex: 1;
+    padding: 1rem;
+    background-color: #f2f2f2;
+  }
+
+  @media (max-width: 500px) {
+    .app-container {
+      flex-direction: column;
+    }
+    .sidebar {
+      width: 100%;
+      height: auto;
+      position: relative;
+      box-shadow: none;
+    }
+  }
