@@ -15,7 +15,7 @@ from utils import (
     build_layout,
     call_prediction_api,
     get_row_and_index,
-    get_top_numeric_features,
+    get_top_features,
     load_model_and_data,
     make_score_figure,
     transform_shap_to_proba,
@@ -388,7 +388,7 @@ def update_violin_plots(client_id, max_features, group_column):
         row, obs_index = get_row_and_index(df_full, "SK_ID_CURR", client_id)
         shap_vals = shap_values_full.values[obs_index]
         feature_names = shap_values_full.feature_names
-        top_features = get_top_numeric_features(
+        top_features = get_top_features(
             shap_vals, feature_names, df_full, max_features
         )
 
