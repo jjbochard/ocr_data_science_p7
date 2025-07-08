@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
+import plotly.io as pio
 import requests
 import shap
 from dash import html
@@ -15,6 +16,7 @@ from dotenv import load_dotenv
 from pandas.api.types import is_numeric_dtype
 from scipy.special import expit
 
+pio.templates.default = "plotly_white"
 load_dotenv(override=True)
 
 TRACKING_URI = os.getenv("TRACKING_URI")
@@ -229,51 +231,6 @@ def build_color_map(groups):
     return {grp: palette[i % len(palette)] for i, grp in enumerate(groups)}
 
 
-def add_client_point(fig, client_group, client_val, use_bar):
-    # x = str(client_val) if use_bar else client_group
-    # fig.add_trace(
-    #     go.Scatter(
-    #         x=[x],
-    #         y=[client_val],
-    #         mode="markers+text",
-    #         name="Client",
-    #         marker=dict(color="black", size=12),
-    #         text=[f"Client: {client_val:.1f}"],
-    #         textposition="top center",
-    #         showlegend=False,
-    #     )
-    # )
-    if isinstance(client_val, (int, float, np.integer, np.floating)):
-        label = f"{client_val:.2f}"
-    else:
-        label = str(client_val)
-
-    if use_bar:
-        fig.add_trace(
-            go.Scatter(
-                x=[str(client_val)],
-                y=[0],
-                mode="markers+text",
-                text=[label],
-                textposition="top center",
-                marker=dict(color="black", size=10, symbol="diamond"),
-                showlegend=False,
-            )
-        )
-    else:
-        fig.add_trace(
-            go.Scatter(
-                x=[client_group],
-                y=[client_val],
-                mode="markers+text",
-                text=[label],
-                textposition="top center",
-                marker=dict(color="black", size=10, symbol="diamond"),
-                showlegend=False,
-            )
-        )
-
-
 def build_layout(feature, group_column, use_bar):
     title = f"{feature}"
     if group_column:
@@ -281,59 +238,128 @@ def build_layout(feature, group_column, use_bar):
 
     cfg = {
         "title": title,
-        "xaxis": {"showticklabels": False},
-        "yaxis_title": feature,
-        "legend": {
-            "orientation": "h",
-            "yanchor": "bottom",
-            "y": -0.4,
-            "xanchor": "center",
-            "x": 0.5,
-        },
+        "xaxis": {"showticklabels": True},
     }
     if not use_bar:
         cfg.update({"violingap": 0.3, "violingroupgap": 0.4})
     return cfg
 
 
-def add_group_trace(fig, df, feature, group_column, group, color, use_bar):
+def add_horizontal_bar(fig, y_labels, counts, feature):
+    fig.add_trace(
+        go.Bar(
+            y=y_labels,
+            x=counts,
+            orientation="h",
+            hovertemplate=f"{feature}: <b>%{{y}}</b><br>Count: <b>%{{x}}"
+            + "</b><extra></extra>",
+            text=counts,
+            textposition="outside",
+        )
+    )
+    fig.update_traces(cliponaxis=False)
+    fig.update_yaxes(automargin=True, showgrid=False)
+    fig.update_xaxes(automargin=True)
+
+    fig.update_layout(
+        yaxis_title=feature,
+        xaxis_title="Count",
+        yaxis=dict(type="category"),
+    )
+
+
+def add_heatmap(fig, df, feature, group_column):
+    pivot = pd.crosstab(df[feature], df[group_column])
+    pivot_t = pivot.T
+
+    x_labels = [
+        str(int(x))
+        if isinstance(x, (int, float)) and float(x).is_integer()
+        else str(x)
+        for x in pivot_t.columns
+    ]
+
+    y_labels = pivot_t.index.tolist()
+    z_values = pivot_t.values
+
+    fig.add_trace(
+        go.Heatmap(
+            z=z_values,
+            x=x_labels,
+            y=y_labels,
+            text=z_values,
+            texttemplate="%{text}",
+            colorscale="Cividis",
+            hovertemplate=f"{feature}: %{{x}}<br>{group_column}: %{{y}}<br>"
+            + "Count: %{{z}}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        xaxis_title=feature,
+        yaxis_title=group_column,
+        xaxis=dict(type="category", automargin=True),
+        yaxis=dict(type="category", automargin=True),
+    )
+    fig.update_xaxes(autotickangles=[0, 45, 60, 90])
+
+
+def add_violin_plot(fig, x_labels, y_values, name):
+    fig.add_trace(
+        go.Violin(
+            x=x_labels,
+            y=y_values,
+            name=name,
+            box_visible=True,
+            meanline_visible=True,
+            points=False,
+            showlegend=False,
+        )
+    )
+
+
+def add_group_trace(
+    fig,
+    df,
+    feature,
+    group_column,
+    group,
+    numeric_to_categorical,
+):
     mask = df[group_column] == group if group_column else slice(None)
     vals = df.loc[mask, feature]
     size = mask.sum() if group_column else len(df)
 
-    if not is_numeric_dtype(vals):
-        vc = vals.value_counts().sort_index()
-        fig.add_trace(
-            go.Bar(
-                x=[str(x) for x in vc.index],
-                y=vc.values,
-                name=f"{group} ({size})",
-                marker_color=color,
-                opacity=0.6,
-            )
-        )
-    else:
-        if use_bar:
-            vc = vals.value_counts().sort_index()
-            fig.add_trace(
-                go.Bar(
-                    x=[str(x) for x in vc.index],
-                    y=vc.values,
-                    name=f"{group} ({size})",
-                    marker_color=color,
-                    marker_line_color=color,
-                    opacity=0.6,
-                )
-            )
+    is_numeric = is_numeric_dtype(vals)
+
+    if not is_numeric:
+        if group_column:
+            add_heatmap(fig, df, feature, group_column)
         else:
-            fig.add_trace(
-                go.Violin(
-                    x=[group] * len(vals),
-                    y=vals,
-                    name=f"{group} ({size})",
-                    box_visible=True,
-                    meanline_visible=True,
-                    opacity=0.6,
-                    points=False,
+            vc = vals.value_counts().sort_values(ascending=True)
+            add_horizontal_bar(
+                fig,
+                vc.index.to_list(),
+                vc.values.tolist(),
+                feature,
+            )
+
+    else:
+        if numeric_to_categorical:
+            if not group_column:
+                vc = vals.value_counts().sort_values(ascending=True)
+                labels = list(map(int, vc.index))
+                add_horizontal_bar(
+                    fig,
+                    labels,
+                    vc.values.tolist(),
+                    feature,
                 )
+
+            else:
+                add_heatmap(fig, df, feature, group_column)
+        else:
+            size = len(vals)
+            group_label = f"{group} ({size})"
+            add_violin_plot(
+                fig, [group_label] * size, vals.tolist(), group_label
             )

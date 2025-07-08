@@ -9,9 +9,7 @@ from components.graphs import shap_waterfall_plot
 from dash import Input, Output, callback, dcc, html, register_page
 from dash.exceptions import PreventUpdate
 from utils import (
-    add_client_point,
     add_group_trace,
-    build_color_map,
     build_layout,
     call_prediction_api,
     get_row_and_index,
@@ -245,7 +243,7 @@ layout = html.Div(
         ),
     ],
     style={
-        "maxWidth": "90vw",
+        "maxWidth": "100%",
         "margin": "0 auto",
         "padding": "2rem 1rem",
         "backgroundColor": "#f2f2f2",
@@ -380,7 +378,7 @@ def update_dashboard(
     Input("max-feature-count", "value"),
     Input("group-column", "value"),
 )
-def update_violin_plots(client_id, max_features, group_column):
+def update_plots(client_id, max_features, group_column):
     if client_id is None or group_column is None:
         raise PreventUpdate
 
@@ -400,21 +398,18 @@ def update_violin_plots(client_id, max_features, group_column):
                 if group_column == "WEEKDAY_APPR_PROCESS_START"
                 else sorted(groups_raw)
             )
-            color_map = build_color_map(groups)
         else:
             groups = ["All clients"]
-            color_map = {"All clients": px.colors.qualitative.Plotly[0]}
 
         figures = []
         for feature in top_features:
             is_numeric = pd.api.types.is_numeric_dtype(df_full[feature])
-            client_val = row[feature]
 
             if is_numeric:
                 unique_vals = df_full[feature].nunique()
-                use_bar_plot = unique_vals < LOW_UNIQUE_THRESHOLD
+                numeric_to_categorical = unique_vals < LOW_UNIQUE_THRESHOLD
             else:
-                use_bar_plot = False
+                numeric_to_categorical = False
 
             fig = go.Figure()
 
@@ -425,16 +420,11 @@ def update_violin_plots(client_id, max_features, group_column):
                     feature,
                     group_column,
                     group,
-                    color_map[group],
-                    use_bar_plot,
+                    numeric_to_categorical,
                 )
 
-            client_group = row.get(group_column, "All clients")
-            client_val = row[feature]
-
-            add_client_point(fig, client_group, client_val, use_bar_plot)
             fig.update_layout(
-                **build_layout(feature, group_column, use_bar_plot)
+                **build_layout(feature, group_column, numeric_to_categorical)
             )
             figures.append(
                 html.Div(
@@ -457,8 +447,8 @@ def update_violin_plots(client_id, max_features, group_column):
         )
 
     except Exception as e:
-        print(f"[ERROR updating violin plots] {e}")
-        return html.Div("Error during violin plots construction")
+        print(f"[ERROR updating plots] {e}")
+        return html.Div("Error during plots construction")
 
 
 @callback(
@@ -482,7 +472,6 @@ def render_custom_plots(client_id, columns, group_column, max_features):
             if group_column == "WEEKDAY_APPR_PROCESS_START"
             else sorted(groups_raw)
         )
-        color_map = build_color_map(groups)
     else:
         groups = ["All clients"]
         color_map = {"All clients": px.colors.qualitative.Plotly[0]}
@@ -492,7 +481,6 @@ def render_custom_plots(client_id, columns, group_column, max_features):
         fig = go.Figure()
         unique_vals = df_full[feature].nunique()
         use_bar_plot = unique_vals < LOW_UNIQUE_THRESHOLD
-        client_val = row[feature]
 
         for group in groups:
             add_group_trace(
@@ -504,11 +492,6 @@ def render_custom_plots(client_id, columns, group_column, max_features):
                 color_map[group],
                 use_bar_plot,
             )
-            client_group = (
-                row.get(group_column) if group_column else "All clients"
-            )
-
-            add_client_point(fig, client_group, client_val, use_bar_plot)
             fig.update_layout(
                 **build_layout(feature, group_column, use_bar_plot)
             )
