@@ -400,9 +400,10 @@ def update_plots(client_id, max_features, group_column):
             )
         else:
             groups = ["All clients"]
-
         figures = []
         for feature in top_features:
+            client_val = row[feature]
+            client_group = row[group_column] if group_column else None
             is_numeric = pd.api.types.is_numeric_dtype(df_full[feature])
 
             if is_numeric:
@@ -421,6 +422,8 @@ def update_plots(client_id, max_features, group_column):
                     group_column,
                     group,
                     numeric_to_categorical,
+                    client_val,
+                    client_group,
                 )
 
             fig.update_layout(
