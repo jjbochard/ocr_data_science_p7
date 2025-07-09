@@ -245,6 +245,24 @@ def build_layout(feature, group_column, use_bar):
     return cfg
 
 
+def format_val(x, decimals=3):
+    if isinstance(x, str):
+        try:
+            x = float(x)
+        except ValueError:
+            return x
+    try:
+        xf = float(x)
+    except (TypeError, ValueError):
+        return str(x)
+
+    if xf.is_integer():
+        return str(int(xf))
+
+    s = f"{xf:.{decimals}f}".rstrip("0").rstrip(".")
+    return s
+
+
 def add_horizontal_bar(fig, y_labels, counts, feature, client_val=None):
     fig.add_trace(
         go.Bar(
@@ -253,7 +271,7 @@ def add_horizontal_bar(fig, y_labels, counts, feature, client_val=None):
             orientation="h",
             hovertemplate=f"{feature}: <b>%{{y}}</b><br>Count: <b>%{{x}}"
             + "</b><extra></extra>",
-            text=counts,
+            text=[format_val(c) for c in counts],
             textposition="outside",
             showlegend=False,
         )
@@ -284,13 +302,8 @@ def add_horizontal_bar(fig, y_labels, counts, feature, client_val=None):
                 ),
                 showlegend=False,
                 hovertemplate="Client",
-                name=(
-                    int(client_val)
-                    if isinstance(client_val, float)
-                    and client_val.is_integer()
-                    else client_val
-                ),
-            )
+                name=(format_val(client_val)),
+            ),
         )
 
 
@@ -454,6 +467,6 @@ def add_group_trace(
                 ),
                 showlegend=False,
                 hovertemplate="Client",
-                name=client_val,
+                name=format_val(client_val),
             )
         )
