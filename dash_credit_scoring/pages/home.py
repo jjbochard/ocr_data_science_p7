@@ -66,7 +66,7 @@ def Card(children, title=None, **kwargs):
     )
     return dbc.Card(
         content,
-        className="shadow-sm mb-4 h-100",
+        className="shadow-sm mb-2 h-100",
         **kwargs,
     )
 
@@ -429,14 +429,18 @@ def update_plots(client_id, max_features, group_column):
             fig.update_layout(
                 **build_layout(feature, group_column, numeric_to_categorical)
             )
+            if group_column:
+                card_title = f"{feature} by {group_column}"
+            else:
+                card_title = feature
             cards.append(
                 Card(
-                    title=feature,
+                    title=card_title,
                     children=[
                         dcc.Graph(
                             figure=fig,
                             config={"displayModeBar": False},
-                            style={"height": "35vh"},
+                            style={"width": "100%", "height": "100%"},
                         )
                     ],
                     style={

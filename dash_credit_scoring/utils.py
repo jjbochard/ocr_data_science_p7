@@ -232,12 +232,7 @@ def build_color_map(groups):
 
 
 def build_layout(feature, group_column, use_bar):
-    title = f"{feature}"
-    if group_column:
-        title += f"<br>by {group_column}"
-
     cfg = {
-        "title": title,
         "xaxis": {"showticklabels": True},
     }
     if not use_bar:
