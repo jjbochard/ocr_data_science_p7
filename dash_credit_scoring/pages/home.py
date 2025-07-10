@@ -195,7 +195,7 @@ layout = html.Div(
                                             },
                                         ),
                                         html.Div(
-                                            id="violin-plots",
+                                            id="plots",
                                             role="region",
                                             style={"width": "100%"},
                                         ),
@@ -373,7 +373,7 @@ def update_dashboard(
 
 
 @callback(
-    Output("violin-plots", "children"),
+    Output("plots", "children"),
     Input("client-id", "value"),
     Input("max-feature-count", "value"),
     Input("group-column", "value"),
@@ -400,7 +400,7 @@ def update_plots(client_id, max_features, group_column):
             )
         else:
             groups = ["All clients"]
-        figures = []
+        cards = []
         for feature in top_features:
             client_val = row[feature]
             client_group = row[group_column] if group_column else None
@@ -429,23 +429,30 @@ def update_plots(client_id, max_features, group_column):
             fig.update_layout(
                 **build_layout(feature, group_column, numeric_to_categorical)
             )
-            figures.append(
-                html.Div(
-                    dcc.Graph(figure=fig),
+            cards.append(
+                Card(
+                    title=feature,
+                    children=[
+                        dcc.Graph(
+                            figure=fig,
+                            config={"displayModeBar": False},
+                            style={"height": "35vh"},
+                        )
+                    ],
                     style={
-                        "width": "48%",
-                        "display": "inline-block",
-                        "margin": "1%",
+                        "flex": "1 1 45%",
+                        "margin": "0.5rem",
                     },
                 )
             )
 
         return html.Div(
-            figures,
+            cards,
             style={
                 "display": "flex",
                 "flexWrap": "wrap",
                 "justifyContent": "center",
+                "gap": "1rem",
             },
         )
 
@@ -477,13 +484,20 @@ def render_custom_plots(client_id, columns, group_column, max_features):
         )
     else:
         groups = ["All clients"]
-        color_map = {"All clients": px.colors.qualitative.Plotly[0]}
 
     figures = []
     for _, feature in enumerate(columns):
+        client_val = row[feature]
+        client_group = row[group_column] if group_column else None
+        is_numeric = pd.api.types.is_numeric_dtype(df_full[feature])
+
+        if is_numeric:
+            unique_vals = df_full[feature].nunique()
+            numeric_to_categorical = unique_vals < LOW_UNIQUE_THRESHOLD
+        else:
+            numeric_to_categorical = False
+
         fig = go.Figure()
-        unique_vals = df_full[feature].nunique()
-        use_bar_plot = unique_vals < LOW_UNIQUE_THRESHOLD
 
         for group in groups:
             add_group_trace(
@@ -492,21 +506,21 @@ def render_custom_plots(client_id, columns, group_column, max_features):
                 feature,
                 group_column,
                 group,
-                color_map[group],
-                use_bar_plot,
-            )
-            fig.update_layout(
-                **build_layout(feature, group_column, use_bar_plot)
+                numeric_to_categorical,
+                client_val,
+                client_group,
             )
 
+        fig.update_layout(
+            **build_layout(feature, group_column, numeric_to_categorical)
+        )
         figures.append(
             html.Div(
-                dcc.Graph(figure=fig, config={"displayModeBar": False}),
+                dcc.Graph(figure=fig),
                 style={
                     "width": "48%",
                     "display": "inline-block",
                     "margin": "1%",
-                    "verticalAlign": "top",
                 },
             )
         )
