@@ -3,12 +3,12 @@ from typing import Tuple
 import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objs as go
 from components.graphs import shap_waterfall_plot
 from dash import Input, Output, callback, dcc, html, register_page
 from dash.exceptions import PreventUpdate
 from utils import (
+    Card,
     add_group_trace,
     build_layout,
     call_prediction_api,
@@ -40,35 +40,8 @@ WEEKDAY_ORDER = [
     "SATURDAY",
     "SUNDAY",
 ]
-palette = px.colors.qualitative.Plotly
 
 client_ids = df_full["SK_ID_CURR"].tolist()
-
-
-def Card(children, title=None, **kwargs):
-    header = (
-        dbc.CardHeader(
-            html.H3(
-                title,
-                className="h5 mb-0",
-                role="heading",
-                **{"aria-level": "2"},
-            )
-        )
-        if title
-        else None
-    )
-
-    content = (
-        [header, dbc.CardBody(children)]
-        if header
-        else [dbc.CardBody(children)]
-    )
-    return dbc.Card(
-        content,
-        className="shadow-sm mb-2 h-100",
-        **kwargs,
-    )
 
 
 layout = html.Div(
@@ -80,16 +53,29 @@ layout = html.Div(
                     Card(
                         title="Filter",
                         children=[
-                            dbc.Label("Client ID", html_for="client-id"),
-                            dcc.Dropdown(
-                                id="client-id",
-                                options=[
-                                    {"label": str(i), "value": i}
-                                    for i in client_ids
-                                ],
-                                placeholder="Select a client ID",
-                                value=None,
-                                style={"width": "100%"},
+                            html.Div(
+                                [
+                                    dbc.Label(
+                                        "Client ID",
+                                        id="client-id-label",
+                                    ),
+                                    html.Div(
+                                        dcc.Dropdown(
+                                            id="client-id",
+                                            options=[
+                                                {"label": str(i), "value": i}
+                                                for i in client_ids
+                                            ],
+                                            placeholder="Select a client ID",
+                                            value=None,
+                                            style={"width": "100%"},
+                                        ),
+                                        role="group",
+                                        **{
+                                            "aria-labelledby": "client-id-label"
+                                        },
+                                    ),
+                                ]
                             ),
                         ],
                     ),
@@ -100,9 +86,22 @@ layout = html.Div(
                     Card(
                         title="Client Summary",
                         children=[
+                            html.H2(
+                                "Client Summary",
+                                id="client-summary-title",
+                                style={
+                                    "position": "absolute",
+                                    "left": "-10000px",
+                                    "top": "auto",
+                                    "width": "1px",
+                                    "height": "1px",
+                                    "overflow": "hidden",
+                                },
+                            ),
                             html.Div(
                                 id="client-summary",
                                 role="region",
+                                **{"aria-labelledby": "client-summary-title"},
                                 **{"aria-live": "polite"},
                             ),
                         ],
@@ -159,9 +158,24 @@ layout = html.Div(
                                                 "marginBottom": "1rem",
                                             },
                                         ),
+                                        html.H2(
+                                            "SHAP Local Feature Importance",
+                                            id="feature-importance-title",
+                                            style={
+                                                "position": "absolute",
+                                                "left": "-10000px",
+                                                "top": "auto",
+                                                "width": "1px",
+                                                "height": "1px",
+                                                "overflow": "hidden",
+                                            },
+                                        ),
                                         html.Div(
                                             id="feature-importance-local",
                                             role="region",
+                                            **{
+                                                "aria-labelledby": "feature-importance-title"
+                                            },
                                             style={"width": "100%"},
                                         ),
                                     ],
@@ -180,10 +194,7 @@ layout = html.Div(
                                                 {"label": "", "value": ""}
                                             ]
                                             + [
-                                                {
-                                                    "label": c,
-                                                    "value": c,
-                                                }
+                                                {"label": c, "value": c}
                                                 for c in groupable_columns
                                             ],
                                             value="",
@@ -194,9 +205,24 @@ layout = html.Div(
                                                 "marginBottom": "1rem",
                                             },
                                         ),
+                                        html.H2(
+                                            "Group-level Feature Distributions",
+                                            id="plots-title",
+                                            style={
+                                                "position": "absolute",
+                                                "left": "-10000px",
+                                                "top": "auto",
+                                                "width": "1px",
+                                                "height": "1px",
+                                                "overflow": "hidden",
+                                            },
+                                        ),
                                         html.Div(
                                             id="plots",
                                             role="region",
+                                            **{
+                                                "aria-labelledby": "plots-title"
+                                            },
                                             style={"width": "100%"},
                                         ),
                                     ],
@@ -219,18 +245,30 @@ layout = html.Div(
                                             id="custom-columns",
                                             options=[],
                                             multi=True,
-                                            placeholder=(
-                                                "Choose features to "
-                                                + "display graphs"
-                                            ),
+                                            placeholder="Choose features to display graphs",
                                             style={
                                                 "width": "100%",
                                                 "marginBottom": "1rem",
                                             },
                                         ),
+                                        html.H2(
+                                            "Custom Feature Plots",
+                                            id="custom-plots-title",
+                                            style={
+                                                "position": "absolute",
+                                                "left": "-10000px",
+                                                "top": "auto",
+                                                "width": "1px",
+                                                "height": "1px",
+                                                "overflow": "hidden",
+                                            },
+                                        ),
                                         html.Div(
                                             id="custom-plots",
                                             role="region",
+                                            **{
+                                                "aria-labelledby": "custom-plots-title"
+                                            },
                                             style={"width": "100%"},
                                         ),
                                     ]
@@ -355,13 +393,26 @@ def update_dashboard(
                         if decision == "Credit validated"
                         else "#dc3545",
                         "fontWeight": "600",
-                        "marginLeft": "5px",
+                        "marginLeft": "1%",
                     },
                 ),
             ]
         )
 
-        return summary, figure, dcc.Graph(figure=fig_shap)
+        return (
+            summary,
+            figure,
+            html.Div(
+                dcc.Graph(
+                    figure=fig_shap,
+                    config={"displayModeBar": False},
+                ),
+                role="region",
+                **{
+                    "aria-label": f"SHAP waterfall plot for client {client_id}"
+                },
+            ),
+        )
 
     except Exception as e:
         print(f"[ERROR update_dashboard] {e}")
@@ -437,10 +488,16 @@ def update_plots(client_id, max_features, group_column):
                 Card(
                     title=card_title,
                     children=[
-                        dcc.Graph(
-                            figure=fig,
-                            config={"displayModeBar": False},
-                            style={"width": "100%", "height": "100%"},
+                        html.Div(
+                            dcc.Graph(
+                                figure=fig,
+                                config={"displayModeBar": False},
+                                style={"width": "100%", "height": "100%"},
+                            ),
+                            role="region",
+                            **{
+                                "aria-label": f"Distribution of {feature} grouped by {group_column or 'all clients'}",
+                            },
                         )
                     ],
                     style={
@@ -520,7 +577,16 @@ def render_custom_plots(client_id, columns, group_column, max_features):
         )
         figures.append(
             html.Div(
-                dcc.Graph(figure=fig),
+                html.Div(
+                    dcc.Graph(
+                        figure=fig,
+                        config={"displayModeBar": False},
+                    ),
+                    role="region",
+                    **{
+                        "aria-label": f"Custom plot of {feature} grouped by {group_column or 'all clients'}"
+                    },
+                ),
                 style={
                     "width": "48%",
                     "display": "inline-block",

@@ -52,3 +52,12 @@
       box-shadow: none;
     }
   }
+
+:focus {
+  outline: 4px solid #005fcc;
+  outline-offset: 2px;
+}
+.css-1hwfws3:focus {
+  outline: 4px dashed #005fcc;
+  outline-offset: 2px;
+}

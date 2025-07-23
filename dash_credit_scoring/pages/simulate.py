@@ -1,6 +1,7 @@
 import math
 from typing import List, Tuple, Union
 
+import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
@@ -8,6 +9,7 @@ from dash import ALL, Input, Output, State, callback, dcc, html, register_page
 from dash.development.base_component import Component
 from dash.exceptions import PreventUpdate
 from utils import (
+    Card,
     call_prediction_api,
     get_feature_differences,
     get_row_and_index,
@@ -30,40 +32,101 @@ client_ids = df_full["SK_ID_CURR"].tolist()
 
 layout = html.Div(
     [
-        html.H3("Do a simulation"),
-        dcc.Dropdown(
-            id="client-id",
-            options=[{"label": str(i), "value": i} for i in client_ids],
-            placeholder="Choose a client ID",
-        ),
-        dcc.Dropdown(
-            id="max-form-fields",
-            options=[
-                {"label": f"{n} features", "value": n}
-                for n in [5, 10, 15, 20, 25, 50]
+        dbc.Row(
+            [
+                dbc.Col(
+                    Card(
+                        title="Simulation Filters",
+                        children=[
+                            html.Label("Client ID", htmlFor="client-id"),
+                            dcc.Dropdown(
+                                id="client-id",
+                                options=[
+                                    {"label": str(i), "value": i}
+                                    for i in client_ids
+                                ],
+                                placeholder="Select client ID",
+                                className="mb-3",
+                            ),
+                            html.Label(
+                                "Max Features", htmlFor="max-form-fields"
+                            ),
+                            dcc.Dropdown(
+                                id="max-form-fields",
+                                options=[
+                                    {"label": f"{n} features", "value": n}
+                                    for n in [5, 10, 15, 20, 25, 50]
+                                ],
+                                value=5,
+                                clearable=False,
+                                className="mb-3",
+                            ),
+                            html.Div(
+                                [
+                                    dbc.Button(
+                                        "Recalculate",
+                                        id="recalculate-btn",
+                                        color="primary",
+                                        className="me-2",
+                                    ),
+                                    dbc.Button(
+                                        "Reset", id="reset-btn", color="danger"
+                                    ),
+                                ],
+                                className="d-flex",
+                            ),
+                        ],
+                    ),
+                    md=4,
+                    sm=12,
+                ),
+                dbc.Col(
+                    Card(
+                        title="Editable Features",
+                        children=html.Div(id="editable-features"),
+                    ),
+                    md=8,
+                    sm=12,
+                ),
             ],
-            value=5,
-            clearable=False,
-            style={"marginTop": "10px"},
+            className="gy-4 mb-4 align-items-stretch",
         ),
-        html.Div(id="editable-features"),
-        html.Button("Recalculate", id="recalculate-btn", n_clicks=0),
-        html.Button(
-            "Reset",
-            id="reset-btn",
-            n_clicks=0,
-            style={"marginTop": "10px"},
+        html.Div(id="client-summary-simulate", className="mb-4"),
+        dbc.Row(
+            [
+                dbc.Col(
+                    Card(
+                        title="Score Before Simulation",
+                        children=[
+                            dcc.Graph(
+                                id="proba-before-simulate",
+                                config={"displayModeBar": False},
+                                style={"width": "100%", "height": "40vh"},
+                            )
+                        ],
+                    ),
+                    md=6,
+                    sm=12,
+                ),
+                dbc.Col(
+                    Card(
+                        title="Score After Simulation",
+                        children=[
+                            dcc.Graph(
+                                id="proba-after-simulate",
+                                config={"displayModeBar": False},
+                                style={"width": "100%", "height": "40vh"},
+                            )
+                        ],
+                    ),
+                    md=6,
+                    sm=12,
+                ),
+            ],
+            className="gx-4 gy-4 justify-content-center",
         ),
-        html.Div(id="client-summary-simulate"),
-        dcc.Graph(
-            id="proba-before-simulate",
-            style={"display": "inline-block", "width": "49%"},
-        ),
-        dcc.Graph(
-            id="proba-after-simulate",
-            style={"display": "inline-block", "width": "49%"},
-        ),
-    ]
+    ],
+    style={"padding": "2rem 1rem", "backgroundColor": "#f2f2f2"},
 )
 
 
@@ -117,36 +180,44 @@ def display_editable_form(client_id: int, max_fields: int) -> List[html.Div]:
     top_features = ranked_features[:max_fields]
 
     # Create input fields
-    return [
-        html.Div(
-            [
-                html.Label(name),
-                dcc.Dropdown(
-                    id={"type": "input-feature", "feature": name},
-                    options=[
-                        {"label": str(val), "value": val}
-                        for val in allowed_values_per_feature[name]
-                    ],
-                    value=None if pd.isna(value) else value,
-                    placeholder=f"Select {name}",
-                    style={"marginBottom": "5px", "width": "100%"},
-                ),
-            ]
-        )
-        if name in allowed_values_per_feature
-        else html.Div(
-            [
-                html.Label(name),
-                dcc.Input(
-                    id={"type": "input-feature", "feature": name},
-                    type="text",
-                    value="" if pd.isna(value) else str(value),
-                    style={"marginBottom": "5px", "width": "100%"},
-                ),
-            ]
-        )
-        for name, _, value in top_features
-    ]
+    controls = []
+    for name, _, value in top_features:
+        if name in allowed_values_per_feature:
+            control = html.Div(
+                [
+                    html.Label(name),
+                    dcc.Dropdown(
+                        id={"type": "input-feature", "feature": name},
+                        options=[
+                            {"label": str(val), "value": val}
+                            for val in allowed_values_per_feature[name]
+                        ],
+                        value=None if pd.isna(value) else value,
+                        placeholder=f"Select {name}",
+                        style={"marginBottom": "5px", "width": "100%"},
+                    ),
+                ]
+            )
+        else:
+            control = html.Div(
+                [
+                    html.Label(name),
+                    dcc.Input(
+                        id={"type": "input-feature", "feature": name},
+                        type="text",
+                        value="" if pd.isna(value) else str(value),
+                        style={"marginBottom": "5px", "width": "100%"},
+                        className="form-control",
+                        placeholder=f"Enter {name}",
+                    ),
+                ]
+            )
+        controls.append(control)
+
+    return dbc.Row(
+        [dbc.Col(ctrl, md=6, sm=12) for ctrl in controls],
+        className="gx-3 gy-2",
+    )
 
 
 @callback(
@@ -229,28 +300,54 @@ def recalculate_prediction(
     # Get features differences
     diffs = get_feature_differences(original_features, modified_features)
 
-    # Table of differences
-    diff_table = html.Table(
-        [html.Tr([html.Th("Feature"), html.Th("Avant"), html.Th("Après")])]
-        + [
-            html.Tr([html.Td(k), html.Td(str(v1)), html.Td(str(v2))])
-            for k, v1, v2 in diffs
-        ]
-    )
+    diff_df = pd.DataFrame(diffs, columns=["Feature", "Before", "After"])
 
+    diff_table = dbc.Table.from_dataframe(
+        diff_df,
+        striped=True,
+        bordered=True,
+        hover=True,
+        responsive=True,
+        className="table-sm",
+    )
+    results_card = dbc.Card(
+        [
+            dbc.CardHeader(html.H4("Results")),
+            dbc.CardBody(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                html.P(f"Score BEFORE : {proba_before:.2f}"),
+                                width="auto",
+                            ),
+                            dbc.Col(
+                                html.P(f"Threshold : {threshold:.2f}"),
+                                width="auto",
+                            ),
+                            dbc.Col(
+                                html.P(
+                                    decision,
+                                    className=(
+                                        "text-success"
+                                        if decision == "Credit validated"
+                                        else "text-danger"
+                                    ),
+                                ),
+                                width="auto",
+                            ),
+                        ],
+                        className="align-items-center mb-3",
+                    ),
+                    html.H5("Modified features:", className="mt-3"),
+                    diff_table,
+                ]
+            ),
+        ],
+        className="shadow-sm mb-4",
+    )
     return (
-        html.Div(
-            [
-                html.H4("Results :"),
-                html.P(
-                    f"Score before : {proba_after:.2f} | "
-                    + f"Threshold : {threshold:.2f} → {decision}"
-                ),
-                html.Hr(),
-                html.H5("Modified features :"),
-                diff_table,
-            ]
-        ),
+        results_card,
         make_score_figure(
             proba_before, "Score BEFORE modification", threshold
         ),
@@ -279,3 +376,17 @@ def reset_simulation_page(
     editable form inputs, summary, and score comparison charts.
     """
     return None, [], None, {}, {}
+
+
+@callback(
+    Output({"type": "input-feature", "feature": ALL}, "className"),
+    Input({"type": "input-feature", "feature": ALL}, "value"),
+)
+def validate_features(values):
+    classes = []
+    for v in values:
+        if v is None or (isinstance(v, str) and not v.strip()):
+            classes.append("is-invalid")
+        else:
+            classes.append("is-valid")
+    return classes

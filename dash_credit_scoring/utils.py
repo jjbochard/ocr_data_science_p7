@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple
 
+import dash_bootstrap_components as dbc
 import mlflow
 import numpy as np
 import pandas as pd
@@ -10,8 +11,6 @@ import plotly.io as pio
 import requests
 import shap
 from dash import html
-
-# from dash import html
 from dotenv import load_dotenv
 from pandas.api.types import is_numeric_dtype
 from scipy.special import expit
@@ -79,6 +78,32 @@ def load_model_and_data() -> Tuple[
     )
 
 
+def Card(children, title=None, **kwargs):
+    header = (
+        dbc.CardHeader(
+            html.H3(
+                title,
+                className="h5 mb-0",
+                role="heading",
+                **{"aria-level": "2"},
+            )
+        )
+        if title
+        else None
+    )
+
+    content = (
+        [header, dbc.CardBody(children)]
+        if header
+        else [dbc.CardBody(children)]
+    )
+    return dbc.Card(
+        content,
+        className="shadow-sm mb-2 h-100",
+        **kwargs,
+    )
+
+
 def transform_shap_to_proba(shap_values, pred_proba, i):
     """
     Transform SHAP values from log-odds to approximate probability scale.
@@ -123,6 +148,7 @@ def make_score_figure(score: float, title: str, threshold: float) -> go.Figure:
         x=[title],
         y=[score],
         text=[f"{score:.2f}"],
+        marker_color="rgba(52, 152, 219, 0.7)",
         textposition="auto",
     )
 
@@ -132,7 +158,7 @@ def make_score_figure(score: float, title: str, threshold: float) -> go.Figure:
         x1=0.5,
         y0=threshold,
         y1=threshold,
-        line=dict(color="red", width=2, dash="dash"),
+        line=dict(color="black", width=2, dash="dash"),
     )
 
     fig.add_annotation(
@@ -140,8 +166,9 @@ def make_score_figure(score: float, title: str, threshold: float) -> go.Figure:
         y=threshold,
         text=f"Threshold = {threshold:.2f}",
         showarrow=False,
-        font=dict(color="red"),
-        yshift=10,
+        font=dict(color="black", size=12),
+        # yshift=10,
+        yanchor="bottom",
     )
 
     fig.update_layout(
