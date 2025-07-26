@@ -31,35 +31,35 @@ jobs:
       run: |
         pytest --maxfail=1 --disable-warnings -q
 
-  # docker-deploy:
-  #   needs: build-and-test
-  #   runs-on: ubuntu-latest
-  #   env:
-  #     IMAGE_URI: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/home-credit-api:latest
-  #     SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
-  #     AWS_REGION: ${{ secrets.AWS_REGION }}
-  #   steps:
-  #   - name: Checkout repo
-  #     uses: actions/checkout@v4
+  docker-deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_URI: ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/home-credit-api:latest
+      SERVICE_ARN: ${{ secrets.APPRUNNER_SERVICE_ARN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
 
-  #   - name: Configure AWS credentials
-  #     uses: aws-actions/configure-aws-credentials@v2
-  #     with:
-  #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #       aws-region: ${{ secrets.AWS_REGION }}
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
 
-  #   - name: Log in to Amazon ECR
-  #     run: |
-  #       aws ecr get-login-password --region $AWS_REGION \
-  #         | docker login --username AWS --password-stdin ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
+    - name: Log in to Amazon ECR
+      run: |
+        aws ecr get-login-password --region $AWS_REGION \
+          | docker login --username AWS --password-stdin ${{ secrets.ECR_ACCOUNT_ID }}.dkr.ecr.$AWS_REGION.amazonaws.com
 
-  #   - name: Build and push Docker image
-  #     run: |
-  #       cd api/
-  #       docker build -t $IMAGE_URI --push .
+    - name: Build and push Docker image
+      run: |
+        cd api/
+        docker build -t $IMAGE_URI --push .
 
-  #   - name: Trigger App Runner redeploy
-  #     run: |
-  #       aws apprunner start-deployment \
-  #         --service-arn $SERVICE_ARN \
+    - name: Trigger App Runner redeploy
+      run: |
+        aws apprunner start-deployment \
+          --service-arn $SERVICE_ARN \
