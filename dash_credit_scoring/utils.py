@@ -1,6 +1,8 @@
 import os
 from typing import List, Tuple
+from urllib.parse import urlparse
 
+import boto3
 import dash_bootstrap_components as dbc
 import mlflow
 import numpy as np
@@ -18,22 +20,29 @@ from scipy.special import expit
 pio.templates.default = "plotly_white"
 load_dotenv(override=True)
 
-TRACKING_URI = os.getenv("TRACKING_URI")
-FINAL_RUN = os.getenv("FINAL_RUN")
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+S3_URI = os.getenv("S3_URI")
 
-mlflow.set_tracking_uri(TRACKING_URI)
+
+def download_file_from_s3(uri, local_path):
+    parsed = urlparse(uri)
+    bucket = parsed.netloc
+    key = parsed.path.lstrip("/")
+
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+    s3 = boto3.client("s3")
+    s3.download_file(bucket, key, local_path)
 
 
 def load_model_and_data() -> Tuple[shap.Explanation, np.ndarray, pd.DataFrame, pd.DataFrame, shap.Explainer]:
+    download_file_from_s3(S3_URI, "data/home_credit_selected_features.csv.gz")
     df = pd.read_csv("data/home_credit_selected_features.csv.gz", compression="gzip")
     # TODO: Remove this line when app in production
     # Filter only the first 10 rows for performance
     df = df.iloc[:1000].copy()
 
-    # Load model
-    model_uri = f"runs:/{FINAL_RUN}/final_model"
-    pipeline = mlflow.sklearn.load_model(model_uri)
-
+    pipeline = mlflow.sklearn.load_model("models/final_model")
     model = pipeline.named_steps["classifier"]
     preprocessor = pipeline.named_steps["processor"]
 

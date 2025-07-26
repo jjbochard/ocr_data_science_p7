@@ -7,6 +7,7 @@ app = Dash(
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
+server = app.server
 app.title = "Credit Scoring Dashboard"
 
 
@@ -59,13 +60,10 @@ def set_active_links(pathname):
         "/simulate": "link-simulate",
     }
     for page, _ in mapping.items():
-        classes.append(
-            "navbar-link active"
-            if pathname.startswith(page)
-            else "navbar-link"
-        )
+        classes.append("navbar-link active" if pathname.startswith(page) else "navbar-link")
     return classes
 
 
+print("Dash app is running...")
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False, host="0.0.0.0", port=8050)
