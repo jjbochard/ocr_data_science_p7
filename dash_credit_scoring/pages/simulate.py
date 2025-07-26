@@ -10,6 +10,7 @@ from dash.development.base_component import Component
 from dash.exceptions import PreventUpdate
 from utils import (
     Card,
+    build_layout,
     call_prediction_api,
     get_feature_differences,
     get_row_and_index,
@@ -41,22 +42,14 @@ layout = html.Div(
                             html.Label("Client ID", htmlFor="client-id"),
                             dcc.Dropdown(
                                 id="client-id",
-                                options=[
-                                    {"label": str(i), "value": i}
-                                    for i in client_ids
-                                ],
+                                options=[{"label": str(i), "value": i} for i in client_ids],
                                 placeholder="Select client ID",
                                 className="mb-3",
                             ),
-                            html.Label(
-                                "Max Features", htmlFor="max-form-fields"
-                            ),
+                            html.Label("Max Features", htmlFor="max-form-fields"),
                             dcc.Dropdown(
                                 id="max-form-fields",
-                                options=[
-                                    {"label": f"{n} features", "value": n}
-                                    for n in [5, 10, 15, 20, 25, 50]
-                                ],
+                                options=[{"label": f"{n} features", "value": n} for n in [5, 10, 15, 20, 25, 50]],
                                 value=5,
                                 clearable=False,
                                 className="mb-3",
@@ -69,9 +62,7 @@ layout = html.Div(
                                         color="primary",
                                         className="me-2",
                                     ),
-                                    dbc.Button(
-                                        "Reset", id="reset-btn", color="danger"
-                                    ),
+                                    dbc.Button("Reset", id="reset-btn", color="danger"),
                                 ],
                                 className="d-flex",
                             ),
@@ -158,9 +149,7 @@ def display_editable_form(client_id: int, max_fields: int) -> List[html.Div]:
     if client_id is None:
         raise PreventUpdate
     # Get the client row and its index
-    feature_values, obs_index = get_row_and_index(
-        df_full, "SK_ID_CURR", client_id
-    )
+    feature_values, obs_index = get_row_and_index(df_full, "SK_ID_CURR", client_id)
 
     # SHAP values for the selected client
     shap_vals = shap_values_full.values[obs_index]
@@ -168,10 +157,7 @@ def display_editable_form(client_id: int, max_fields: int) -> List[html.Div]:
 
     # Rank features by absolute SHAP value
     ranked_features = sorted(
-        (
-            (name, shap_val, feature_values[name])
-            for name, shap_val in zip(feature_names, shap_vals)
-        ),
+        ((name, shap_val, feature_values[name]) for name, shap_val in zip(feature_names, shap_vals)),
         key=lambda x: abs(x[1]),
         reverse=True,
     )
@@ -188,10 +174,7 @@ def display_editable_form(client_id: int, max_fields: int) -> List[html.Div]:
                     html.Label(name),
                     dcc.Dropdown(
                         id={"type": "input-feature", "feature": name},
-                        options=[
-                            {"label": str(val), "value": val}
-                            for val in allowed_values_per_feature[name]
-                        ],
+                        options=[{"label": str(val), "value": val} for val in allowed_values_per_feature[name]],
                         value=None if pd.isna(value) else value,
                         placeholder=f"Select {name}",
                         style={"marginBottom": "5px", "width": "100%"},
@@ -258,9 +241,7 @@ def recalculate_prediction(
         raise PreventUpdate
 
     # Original data
-    original_features, obs_index = get_row_and_index(
-        df_full, "SK_ID_CURR", client_id
-    )
+    original_features, obs_index = get_row_and_index(df_full, "SK_ID_CURR", client_id)
 
     original_features = original_features.to_dict()
     modified_features = original_features.copy()
@@ -275,9 +256,7 @@ def recalculate_prediction(
             val = pd.to_numeric(val)
         except Exception:
             pass
-        modified_features[key] = (
-            val.item() if isinstance(val, (np.integer, np.floating)) else val
-        )
+        modified_features[key] = val.item() if isinstance(val, (np.integer, np.floating)) else val
 
     # Clean values
     for k, v in modified_features.items():
@@ -290,9 +269,7 @@ def recalculate_prediction(
     # Results
     proba_after = result.get("predict_proba")[0][1]
     threshold = result.get("threshold", 0.5)
-    decision = (
-        "Credit refused" if proba_after >= threshold else "Credit validated"
-    )
+    decision = "Credit refused" if proba_after >= threshold else "Credit validated"
 
     # Original score
     proba_before = float(Y_pred_proba_full[obs_index])
@@ -328,11 +305,7 @@ def recalculate_prediction(
                             dbc.Col(
                                 html.P(
                                     decision,
-                                    className=(
-                                        "text-success"
-                                        if decision == "Credit validated"
-                                        else "text-danger"
-                                    ),
+                                    className=("text-success" if decision == "Credit validated" else "text-danger"),
                                 ),
                                 width="auto",
                             ),
@@ -346,12 +319,14 @@ def recalculate_prediction(
         ],
         className="shadow-sm mb-4",
     )
+    figure_before = make_score_figure(proba_before, "", threshold)
+    figure_before.update_layout(**build_layout(use_bar=False))
+    figure_after = make_score_figure(proba_after, "", threshold)
+    figure_after.update_layout(**build_layout(use_bar=False))
     return (
         results_card,
-        make_score_figure(
-            proba_before, "Score BEFORE modification", threshold
-        ),
-        make_score_figure(proba_after, "Score AFTER modification", threshold),
+        figure_before,
+        figure_after,
     )
 
 

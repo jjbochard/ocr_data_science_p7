@@ -62,18 +62,13 @@ layout = html.Div(
                                     html.Div(
                                         dcc.Dropdown(
                                             id="client-id",
-                                            options=[
-                                                {"label": str(i), "value": i}
-                                                for i in client_ids
-                                            ],
+                                            options=[{"label": str(i), "value": i} for i in client_ids],
                                             placeholder="Select a client ID",
                                             value=None,
                                             style={"width": "100%"},
                                         ),
                                         role="group",
-                                        **{
-                                            "aria-labelledby": "client-id-label"
-                                        },
+                                        **{"aria-labelledby": "client-id-label"},
                                     ),
                                 ]
                             ),
@@ -147,10 +142,7 @@ layout = html.Div(
                                         ),
                                         dcc.Dropdown(
                                             id="max-feature-count",
-                                            options=[
-                                                {"label": str(n), "value": n}
-                                                for n in [5, 10, 15, 20]
-                                            ],
+                                            options=[{"label": str(n), "value": n} for n in [5, 10, 15, 20]],
                                             value=5,
                                             clearable=False,
                                             style={
@@ -173,9 +165,7 @@ layout = html.Div(
                                         html.Div(
                                             id="feature-importance-local",
                                             role="region",
-                                            **{
-                                                "aria-labelledby": "feature-importance-title"
-                                            },
+                                            **{"aria-labelledby": "feature-importance-title"},
                                             style={"width": "100%"},
                                         ),
                                     ],
@@ -190,13 +180,8 @@ layout = html.Div(
                                         ),
                                         dcc.Dropdown(
                                             id="group-column",
-                                            options=[
-                                                {"label": "", "value": ""}
-                                            ]
-                                            + [
-                                                {"label": c, "value": c}
-                                                for c in groupable_columns
-                                            ],
+                                            options=[{"label": "", "value": ""}]
+                                            + [{"label": c, "value": c} for c in groupable_columns],
                                             value="",
                                             clearable=False,
                                             style={
@@ -220,9 +205,7 @@ layout = html.Div(
                                         html.Div(
                                             id="plots",
                                             role="region",
-                                            **{
-                                                "aria-labelledby": "plots-title"
-                                            },
+                                            **{"aria-labelledby": "plots-title"},
                                             style={"width": "100%"},
                                         ),
                                     ],
@@ -266,9 +249,7 @@ layout = html.Div(
                                         html.Div(
                                             id="custom-plots",
                                             role="region",
-                                            **{
-                                                "aria-labelledby": "custom-plots-title"
-                                            },
+                                            **{"aria-labelledby": "custom-plots-title"},
                                             style={"width": "100%"},
                                         ),
                                     ]
@@ -307,9 +288,7 @@ def update_custom_columns_options(client_id):
     feature_names = list(shap_values_full.feature_names)
 
     ordered = np.argsort(np.abs(shap_vals))[::-1]
-    top_features = [
-        fn for i in ordered if (fn := feature_names[i]) in df_full.columns
-    ]
+    top_features = [fn for i in ordered if (fn := feature_names[i]) in df_full.columns]
 
     options = [{"label": feat, "value": feat} for feat in top_features]
 
@@ -323,9 +302,7 @@ def update_custom_columns_options(client_id):
     Input("client-id", "value"),
     Input("max-feature-count", "value"),
 )
-def update_dashboard(
-    client_id: int, max_features: int
-) -> Tuple[html.Div, dict, html.Div]:
+def update_dashboard(client_id: int, max_features: int) -> Tuple[html.Div, dict, html.Div]:
     """
     Update the dashboard with prediction summary, score vs threshold chart,
     and SHAP local explanation for a given client.
@@ -349,8 +326,7 @@ def update_dashboard(
 
         # Clean values
         features = {
-            k: (None if isinstance(v, float) and np.isnan(v) else v)
-            for k, v in row.squeeze().to_dict().items()
+            k: (None if isinstance(v, float) and np.isnan(v) else v) for k, v in row.squeeze().to_dict().items()
         }
         # API call
         result = call_prediction_api(features)
@@ -358,24 +334,15 @@ def update_dashboard(
         # Results
         positive_proba = result.get("predict_proba")[0][1]
         threshold = result.get("threshold", 0.5)
-        decision = (
-            "Credit refused"
-            if positive_proba >= threshold
-            else "Credit validated"
-        )
+        decision = "Credit refused" if positive_proba >= threshold else "Credit validated"
 
         # Graph score vs threshold
-        figure = make_score_figure(
-            positive_proba, "Score VS Threshold", threshold
-        )
+        figure = make_score_figure(positive_proba, "", threshold)
+        figure.update_layout(**build_layout(use_bar=False))
 
         # SHAP local
-        shap_proba_expl = transform_shap_to_proba(
-            shap_values_full, Y_pred_proba_full, obs_index
-        )
-        fig_shap = shap_waterfall_plot(
-            shap_proba_expl, max_display=max_features
-        )
+        shap_proba_expl = transform_shap_to_proba(shap_values_full, Y_pred_proba_full, obs_index)
+        fig_shap = shap_waterfall_plot(shap_proba_expl, max_display=max_features)
         fig_shap.update_yaxes(autorange="reversed")
         summary = html.Div(
             [
@@ -389,9 +356,7 @@ def update_dashboard(
                 html.Span(
                     decision,
                     style={
-                        "color": "#28a745"
-                        if decision == "Credit validated"
-                        else "#dc3545",
+                        "color": "#28a745" if decision == "Credit validated" else "#dc3545",
                         "fontWeight": "600",
                         "marginLeft": "1%",
                     },
@@ -408,9 +373,7 @@ def update_dashboard(
                     config={"displayModeBar": False},
                 ),
                 role="region",
-                **{
-                    "aria-label": f"SHAP waterfall plot for client {client_id}"
-                },
+                **{"aria-label": f"SHAP waterfall plot for client {client_id}"},
             ),
         )
 
@@ -437,9 +400,7 @@ def update_plots(client_id, max_features, group_column):
         row, obs_index = get_row_and_index(df_full, "SK_ID_CURR", client_id)
         shap_vals = shap_values_full.values[obs_index]
         feature_names = shap_values_full.feature_names
-        top_features = get_top_features(
-            shap_vals, feature_names, df_full, max_features
-        )
+        top_features = get_top_features(shap_vals, feature_names, df_full, max_features)
 
         if group_column:
             groups_raw = df_full[group_column].dropna().unique().tolist()
@@ -477,9 +438,7 @@ def update_plots(client_id, max_features, group_column):
                     client_group,
                 )
 
-            fig.update_layout(
-                **build_layout(feature, group_column, numeric_to_categorical)
-            )
+            fig.update_layout(**build_layout(numeric_to_categorical))
             if group_column:
                 card_title = f"{feature} by {group_column}"
             else:
@@ -532,74 +491,83 @@ def update_plots(client_id, max_features, group_column):
 def render_custom_plots(client_id, columns, group_column, max_features):
     if client_id is None or columns is None or group_column is None:
         raise PreventUpdate
+    try:
+        row, _ = get_row_and_index(df_full, "SK_ID_CURR", client_id)
 
-    row, _ = get_row_and_index(df_full, "SK_ID_CURR", client_id)
-
-    if group_column:
-        groups_raw = df_full[group_column].dropna().unique().tolist()
-        # Reorder day if group_column contains days
-        groups = (
-            [d for d in WEEKDAY_ORDER if d in groups_raw]
-            if group_column == "WEEKDAY_APPR_PROCESS_START"
-            else sorted(groups_raw)
-        )
-    else:
-        groups = ["All clients"]
-
-    figures = []
-    for _, feature in enumerate(columns):
-        client_val = row[feature]
-        client_group = row[group_column] if group_column else None
-        is_numeric = pd.api.types.is_numeric_dtype(df_full[feature])
-
-        if is_numeric:
-            unique_vals = df_full[feature].nunique()
-            numeric_to_categorical = unique_vals < LOW_UNIQUE_THRESHOLD
+        if group_column:
+            groups_raw = df_full[group_column].dropna().unique().tolist()
+            # Reorder day if group_column contains days
+            groups = (
+                [d for d in WEEKDAY_ORDER if d in groups_raw]
+                if group_column == "WEEKDAY_APPR_PROCESS_START"
+                else sorted(groups_raw)
+            )
         else:
-            numeric_to_categorical = False
+            groups = ["All clients"]
 
-        fig = go.Figure()
+        cards = []
+        for _, feature in enumerate(columns):
+            client_val = row[feature]
+            client_group = row[group_column] if group_column else None
+            is_numeric = pd.api.types.is_numeric_dtype(df_full[feature])
 
-        for group in groups:
-            add_group_trace(
-                fig,
-                df_full,
-                feature,
-                group_column,
-                group,
-                numeric_to_categorical,
-                client_val,
-                client_group,
-            )
+            if is_numeric:
+                unique_vals = df_full[feature].nunique()
+                numeric_to_categorical = unique_vals < LOW_UNIQUE_THRESHOLD
+            else:
+                numeric_to_categorical = False
 
-        fig.update_layout(
-            **build_layout(feature, group_column, numeric_to_categorical)
-        )
-        figures.append(
-            html.Div(
-                html.Div(
-                    dcc.Graph(
-                        figure=fig,
-                        config={"displayModeBar": False},
-                    ),
-                    role="region",
-                    **{
-                        "aria-label": f"Custom plot of {feature} grouped by {group_column or 'all clients'}"
+            fig = go.Figure()
+
+            for group in groups:
+                add_group_trace(
+                    fig,
+                    df_full,
+                    feature,
+                    group_column,
+                    group,
+                    numeric_to_categorical,
+                    client_val,
+                    client_group,
+                )
+
+            fig.update_layout(**build_layout(numeric_to_categorical))
+            card_title = f"{feature} by {group_column}" if group_column else feature
+            cards.append(
+                Card(
+                    title=card_title,
+                    children=[
+                        html.Div(
+                            dcc.Graph(
+                                figure=fig,
+                                config={"displayModeBar": False},
+                                style={"width": "100%", "height": "100%"},
+                            ),
+                            role="region",
+                            style={"height": "100%", "width": "100%"},
+                            **{
+                                "aria-label": f"Distribution of {feature} grouped by {group_column or 'all clients'}",
+                            },
+                        )
+                    ],
+                    style={
+                        "flex": "1 1 45%",
+                        "margin": "0.5rem",
+                        "height": "100%",
+                        "width": "100%",
                     },
-                ),
-                style={
-                    "width": "48%",
-                    "display": "inline-block",
-                    "margin": "1%",
-                },
+                )
             )
-        )
 
-    return html.Div(
-        figures,
-        style={
-            "display": "flex",
-            "flexWrap": "wrap",
-            "justifyContent": "center",
-        },
-    )
+        return html.Div(
+            cards,
+            style={
+                "display": "flex",
+                "flexWrap": "wrap",
+                "justifyContent": "center",
+                "gap": "1rem",
+            },
+        )
+    except Exception as e:
+        print(f"[ERROR updating custom plots] {e}")
+        return html.Div("Error during custom plots construction")

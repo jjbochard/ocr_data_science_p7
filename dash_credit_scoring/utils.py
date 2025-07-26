@@ -24,12 +24,8 @@ FINAL_RUN = os.getenv("FINAL_RUN")
 mlflow.set_tracking_uri(TRACKING_URI)
 
 
-def load_model_and_data() -> Tuple[
-    shap.Explanation, np.ndarray, pd.DataFrame, pd.DataFrame, shap.Explainer
-]:
-    df = pd.read_csv(
-        "data/home_credit_selected_features.csv.gz", compression="gzip"
-    )
+def load_model_and_data() -> Tuple[shap.Explanation, np.ndarray, pd.DataFrame, pd.DataFrame, shap.Explainer]:
+    df = pd.read_csv("data/home_credit_selected_features.csv.gz", compression="gzip")
     # TODO: Remove this line when app in production
     # Filter only the first 10 rows for performance
     df = df.iloc[:1000].copy()
@@ -62,9 +58,7 @@ def load_model_and_data() -> Tuple[
         if df[col].dtype == "object" or df[col].dtype.name == "category"
     }
     groupable_columns = [
-        col
-        for col in df.select_dtypes(include=["object", "category"]).columns
-        if df[col].nunique() <= 10
+        col for col in df.select_dtypes(include=["object", "category"]).columns if df[col].nunique() <= 10
     ]
 
     return (
@@ -92,11 +86,7 @@ def Card(children, title=None, **kwargs):
         else None
     )
 
-    content = (
-        [header, dbc.CardBody(children)]
-        if header
-        else [dbc.CardBody(children)]
-    )
+    content = [header, dbc.CardBody(children)] if header else [dbc.CardBody(children)]
     return dbc.Card(
         content,
         className="shadow-sm mb-2 h-100",
@@ -180,9 +170,7 @@ def make_score_figure(score: float, title: str, threshold: float) -> go.Figure:
     return fig
 
 
-def get_row_and_index(
-    df: pd.DataFrame, id_column: str, client_id: int
-) -> Tuple[pd.Series, int]:
+def get_row_and_index(df: pd.DataFrame, id_column: str, client_id: int) -> Tuple[pd.Series, int]:
     """
     Retrieve the data row and its index for a specific client ID.
 
@@ -221,9 +209,7 @@ def call_prediction_api(features: dict) -> dict:
     return response.json()
 
 
-def get_feature_differences(
-    original: dict, modified: dict
-) -> List[Tuple[str, any, any]]:
+def get_feature_differences(original: dict, modified: dict) -> List[Tuple[str, any, any]]:
     """
     Compare two dictionaries of feature values and
     return a list of differences.
@@ -240,15 +226,12 @@ def get_feature_differences(
     return [
         (key, original[key], modified[key])
         for key in original
-        if original[key] != modified.get(key)
-        and not (pd.isna(original[key]) and pd.isna(modified.get(key)))
+        if original[key] != modified.get(key) and not (pd.isna(original[key]) and pd.isna(modified.get(key)))
     ]
 
 
 def get_top_features(shap_values, feature_names, df, max_features):
-    top = sorted(
-        zip(feature_names, shap_values), key=lambda x: abs(x[1]), reverse=True
-    )
+    top = sorted(zip(feature_names, shap_values), key=lambda x: abs(x[1]), reverse=True)
     names = [name for name, _ in top[:max_features]]
     return [f for f in names if f in names]
 
@@ -258,10 +241,8 @@ def build_color_map(groups):
     return {grp: palette[i % len(palette)] for i, grp in enumerate(groups)}
 
 
-def build_layout(feature, group_column, use_bar):
-    cfg = {
-        "xaxis": {"showticklabels": True},
-    }
+def build_layout(use_bar):
+    cfg = {"xaxis": {"showticklabels": True}, "margin": dict(l=0.5, r=0.5, t=0.5, b=0.5)}
     if not use_bar:
         cfg.update({"violingap": 0.3, "violingroupgap": 0.4})
     return cfg
@@ -291,8 +272,7 @@ def add_horizontal_bar(fig, y_labels, counts, feature, client_val=None):
             y=y_labels,
             x=counts,
             orientation="h",
-            hovertemplate=f"{feature}: <b>%{{y}}</b><br>Count: <b>%{{x}}"
-            + "</b><extra></extra>",
+            hovertemplate=f"{feature}: <b>%{{y}}</b><br>Count: <b>%{{x}}" + "</b><extra></extra>",
             text=[format_val(c) for c in counts],
             textposition="outside",
             showlegend=False,
@@ -334,10 +314,7 @@ def add_heatmap(fig, df, feature, group_column):
     pivot_t = pivot.T
 
     x_labels = [
-        str(int(x))
-        if isinstance(x, (int, float)) and float(x).is_integer()
-        else str(x)
-        for x in pivot_t.columns
+        str(int(x)) if isinstance(x, (int, float)) and float(x).is_integer() else str(x) for x in pivot_t.columns
     ]
 
     y_labels = pivot_t.index.tolist()
@@ -351,8 +328,7 @@ def add_heatmap(fig, df, feature, group_column):
             text=z_values,
             texttemplate="%{text}",
             colorscale="Cividis",
-            hovertemplate=f"{feature}: %{{x}}<br>{group_column}: %{{y}}<br>"
-            + "Count: %{z}<extra></extra>",
+            hovertemplate=f"{feature}: %{{x}}<br>{group_column}: %{{y}}<br>" + "Count: %{z}<extra></extra>",
         )
     )
     fig.update_layout(
@@ -446,9 +422,7 @@ def add_group_trace(
                 )
 
             else:
-                x_labels, y_labels = add_heatmap(
-                    fig, df, feature, group_column
-                )
+                x_labels, y_labels = add_heatmap(fig, df, feature, group_column)
                 if client_val is not None:
                     col_idx = x_labels.index(str(int(client_val)))
                     row_idx = y_labels.index(client_group)
