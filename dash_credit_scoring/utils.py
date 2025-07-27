@@ -1,8 +1,6 @@
 import os
 from typing import List, Tuple
-from urllib.parse import urlparse
 
-import boto3
 import dash_bootstrap_components as dbc
 import mlflow
 import numpy as np
@@ -20,29 +18,18 @@ from scipy.special import expit
 pio.templates.default = "plotly_white"
 load_dotenv(override=True)
 
-BUCKET_NAME = os.getenv("BUCKET_NAME")
-S3_URI = os.getenv("S3_URI")
+TRACKING_URI = os.getenv("TRACKING_URI")
+FINAL_RUN = os.getenv("FINAL_RUN")
 
-
-def download_file_from_s3(uri, local_path):
-    parsed = urlparse(uri)
-    bucket = parsed.netloc
-    key = parsed.path.lstrip("/")
-
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-
-    s3 = boto3.client("s3")
-    s3.download_file(bucket, key, local_path)
+mlflow.set_tracking_uri(TRACKING_URI)
 
 
 def load_model_and_data() -> Tuple[shap.Explanation, np.ndarray, pd.DataFrame, pd.DataFrame, shap.Explainer]:
-    download_file_from_s3(S3_URI, "data/home_credit_selected_features.csv.gz")
-    df = pd.read_csv("data/home_credit_selected_features.csv.gz", compression="gzip")
+    df = pd.read_csv("home_credit_selected_features_2.csv.gz", compression="gzip")
     # TODO: Remove this line when app in production
-    # Filter only the first 10 rows for performance
-    df = df.iloc[:1000].copy()
 
-    pipeline = mlflow.sklearn.load_model("models/final_model")
+    model_uri = "runs:/29fd5f6e2c914d318260d68503a61432/final_model"
+    pipeline = mlflow.sklearn.load_model(model_uri)
     model = pipeline.named_steps["classifier"]
     preprocessor = pipeline.named_steps["processor"]
 
@@ -211,7 +198,7 @@ def call_prediction_api(features: dict) -> dict:
     """
     try:
         payload = {"features": features}
-        response = requests.post("http://localhost:8000/predict", json=payload)
+        response = requests.post("https://ds9mhppgjv.eu-west-3.awsapprunner.com//predict", json=payload)
         response.raise_for_status()
     except Exception as e:
         return (html.Div(f"Erreur API: {e}"), {}, {})

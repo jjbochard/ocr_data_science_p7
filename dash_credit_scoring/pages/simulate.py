@@ -33,6 +33,12 @@ client_ids = df_full["SK_ID_CURR"].tolist()
 
 layout = html.Div(
     [
+        html.H1(
+            "Credit Scoring Dashboard",
+            id="page-title",
+            className="mb-4 text-center",
+            style={"fontSize": "1.5rem"},
+        ),
         dbc.Row(
             [
                 dbc.Col(

@@ -7,8 +7,14 @@ app = Dash(
     suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.BOOTSTRAP],
 )
+app.layout = html.Div([html.H1("Mon application Dash", className="display-4 text-center my-4")])
 server = app.server
 app.title = "Credit Scoring Dashboard"
+
+
+@server.route("/healthz")
+def health_check():
+    return "OK", 200
 
 
 app.layout = html.Div(
@@ -66,4 +72,5 @@ def set_active_links(pathname):
 
 print("Dash app is running...")
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=8050)
+    if __name__ == "__main__":
+        app.run_server(debug=False, host="0.0.0.0", port=8050)
